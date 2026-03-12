@@ -133,16 +133,15 @@ function App() {
                   <ul className="list-inside list-disc space-y-2 pl-4">
                     <li><code>widget.html</code>: Your standalone web app.</li>
                     <li><code>thumbnail.png</code>: A screenshot of your widget.</li>
-                    <li><code>metadata.json</code>: Widget information.</li>
-                  </ul>
-                  <div className="rounded-md bg-muted p-4 font-mono text-xs">
+                    <li><code>metadata.json</code>: Widget information (Name, Publisher, Size: M/L/XL).</li>
+                  </ul>                  <div className="rounded-md bg-muted p-4 font-mono text-xs">
                     <pre>
 {`{
   "publisher": "Your Name",
   "widget-name": "Widget Title",
+  "recommended_size": "M",
   "description": "Short description"
-}`}
-                    </pre>
+}`}                    </pre>
                   </div>
                   <p>3. Submit a Pull Request to our repository!</p>
                 </div>
