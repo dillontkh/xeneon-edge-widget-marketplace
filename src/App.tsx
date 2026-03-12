@@ -88,7 +88,7 @@ export function App() {
           
           <div className="flex items-center gap-4">
             <div className="relative hidden md:block">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search widgets..."
                 className="w-64 pl-9"
@@ -148,7 +148,7 @@ export function App() {
         {/* Mobile Search */}
         <div className="mb-6 md:hidden">
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search widgets..."
               className="w-full pl-9"
