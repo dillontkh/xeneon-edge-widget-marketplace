@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Search, Plus, Copy, ExternalLink, Github, Monitor, Check } from "lucide-react"
+import { Search, Plus, Copy, ExternalLink, Github, Monitor, Check, HelpCircle } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
 
 // Types for metadata.json
@@ -103,14 +103,28 @@ function App() {
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
-            <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
-              <a href="https://github.com/dillontkh/xeneon-edge-widget-marketplace" target="_blank" rel="noreferrer">
-                <Github className="h-5 w-5" />
-                <span className="sr-only">GitHub</span>
-              </a>
-            </Button>
-            
-            <ModeToggle />
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="sm:w-auto sm:px-4 sm:flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">How to Use</span>
+                  <span className="sr-only">How to Use</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>How to Use</DialogTitle>
+                  <DialogDescription>
+                    Follow these simple steps to add a widget to your Corsair iCue dashboard.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4 text-sm">
+                  <p>1. Click <strong>"Copy code"</strong>.</p>
+                  <p>2. Create a new <strong>iFrame widget</strong> in iCue.</p>
+                  <p>3. <strong>Paste the code</strong> into the iFrame widget.</p>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <Dialog>
               <DialogTrigger asChild>
@@ -134,14 +148,15 @@ function App() {
                     <li><code>widget.html</code>: Your standalone web app.</li>
                     <li><code>thumbnail.png</code>: A screenshot of your widget.</li>
                     <li><code>metadata.json</code>: Widget information (Name, Publisher, Size: M/L/XL).</li>
-                  </ul>                  <div className="rounded-md bg-muted p-4 font-mono text-xs">
+                  </ul>
+                  <div className="rounded-md bg-muted p-4 font-mono text-xs">
                     <pre>
-{`{
-  "publisher": "Your Name",
-  "widget-name": "Widget Title",
-  "recommended_size": "M", // Optional, can be "M", "L", or "XL"
-  "description": "Short description"
-}`}                    </pre>
+          {`{
+          "publisher": "Your Name",
+          "widget-name": "Widget Title",
+          "recommended_size": "M", // Optional, can be "M", "L", or "XL"
+          "description": "Short description"
+          }`}                    </pre>
                   </div>
                   <p>3. Submit a Pull Request to our repository!</p>
                 </div>
@@ -153,7 +168,17 @@ function App() {
                 </Button>
               </DialogContent>
             </Dialog>
+
+            <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
+              <a href="https://github.com/dillontkh/xeneon-edge-widget-marketplace" target="_blank" rel="noreferrer">
+                <Github className="h-5 w-5" />
+                <span className="sr-only">GitHub</span>
+              </a>
+            </Button>
+
+            <ModeToggle />
           </div>
+
         </div>
       </header>
 
