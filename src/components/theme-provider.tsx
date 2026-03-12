@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react"
 
-type Theme = "dark" | "light" | "system"
+type Theme = "dark" | "light" | "browser"
 
 interface ThemeProviderProps {
   children: React.ReactNode
@@ -14,7 +14,7 @@ interface ThemeProviderState {
 }
 
 const initialState: ThemeProviderState = {
-  theme: "system",
+  theme: "browser",
   setTheme: () => null,
 }
 
@@ -22,30 +22,44 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
   children,
-  defaultTheme = "system",
+  defaultTheme = "browser",
   storageKey = "xeneon-ui-theme",
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+    () => {
+      const storedTheme = localStorage.getItem(storageKey) as Theme | null
+      return storedTheme || defaultTheme
+    }
   )
 
   useEffect(() => {
     const root = window.document.documentElement
 
-    root.classList.remove("light", "dark")
+    const applyTheme = (currentTheme: Theme) => {
+      root.classList.remove("light", "dark")
 
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light"
+      if (currentTheme === "browser") {
+        const browserTheme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
+          ? "dark"
+          : "light"
 
-      root.classList.add(systemTheme)
-      return
+        root.classList.add(browserTheme)
+        return
+      }
+
+      root.classList.add(currentTheme)
     }
 
-    root.classList.add(theme)
+    applyTheme(theme)
+
+    if (theme === "browser") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+      const handleChange = () => applyTheme("browser")
+      mediaQuery.addEventListener("change", handleChange)
+      return () => mediaQuery.removeEventListener("change", handleChange)
+    }
   }, [theme])
 
   const value = {
