@@ -2,6 +2,7 @@ import { useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import {
   Dialog,
@@ -226,8 +227,10 @@ function App() {
                     {size}
                   </Badge>
                 </div>
-                <CardDescription className="line-clamp-2 h-10 text-xs">
-                  {widget.metadata.description}
+                <CardDescription className="h-12 text-xs">
+                  <ScrollArea className="h-full pr-2 break-all whitespace-normal">
+                    {widget.metadata.description}
+                  </ScrollArea>
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-1 p-4 pt-0">
