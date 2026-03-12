@@ -2,6 +2,10 @@
   "name": "xeneon-edge-widget-marketplace",
   "private": true,
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dillontkh/xeneon-edge-widget-marketplace"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

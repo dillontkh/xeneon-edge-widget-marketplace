@@ -2,13 +2,10 @@ import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -136,12 +133,11 @@ export function App() {
                   <p>3. Submit a Pull Request to our repository!</p>
                 </div>
                 <Button asChild>
-                  <a href="https://github.com" target="_blank" rel="noreferrer">
-                    <Github className="mr-2 h-4 w-4" />
-                    Open Repository
-                  </a>
-                </Button>
-              </DialogContent>
+                 <a href="https://github.com/dillontkh/xeneon-edge-widget-marketplace" target="_blank" rel="noreferrer">
+                   <Github className="mr-2 h-4 w-4" />
+                   Open Repository
+                 </a>
+                </Button>              </DialogContent>
             </Dialog>
           </div>
         </div>
@@ -249,7 +245,7 @@ export function App() {
             &copy; 2026 Corsair Xeneon Edge Widget Marketplace
           </p>
           <div className="flex items-center gap-4 text-muted-foreground">
-            <a href="#" className="flex items-center gap-1 hover:text-foreground">
+            <a href="https://github.com/dillontkh/xeneon-edge-widget-marketplace" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-foreground">
               <Github className="h-4 w-4" />
               <span className="text-xs">GitHub Repo</span>
             </a>
