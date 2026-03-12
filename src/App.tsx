@@ -180,27 +180,14 @@ function App() {
                   <img 
                     src={widget.thumbnailUrl} 
                     alt={widget.metadata["widget-name"]}
-                    className="h-full w-full object-cover transition-opacity duration-300 group-hover:opacity-0"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/50 text-muted-foreground transition-opacity duration-300 group-hover:opacity-0">
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/50 text-muted-foreground">
                     <Monitor className="h-8 w-8 opacity-20" />
-                    <span className="text-[10px] font-medium uppercase tracking-wider opacity-60">Hover to preview</span>
+                    <span className="text-[10px] font-medium uppercase tracking-wider opacity-60">No thumbnail provided for this widget</span>
                   </div>
                 )}
-
-                {/* Live Preview (Only on Hover for performance/security) */}
-                <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                  <iframe 
-                    srcDoc={widget.html} 
-                    sandbox="allow-scripts"
-                    loading="lazy"
-                    className="h-full w-full pointer-events-none scale-50 origin-top-left border-0" 
-                    style={{ width: '200%', height: '200%' }}
-                    title={widget.metadata["widget-name"]}
-                  />
-                </div>
-                <div className="absolute inset-0 bg-transparent" />
               </div>
               <CardHeader className="p-4">
                 <div className="flex items-start justify-between gap-2">
