@@ -35,9 +35,3 @@ Push your changes to a branch and open a Pull Request. Once merged, your widget 
 1. Install dependencies: `npm install`
 2. Run development server: `npm run dev`
 3. View at `http://localhost:5173`
-
-### Helper Script
-You can use the helper script to scaffold a new widget folder:
-```bash
-node scripts/add-widget.js "my-folder" "My Title" "My Description" "My Name" "<html>...</html>"
-```
