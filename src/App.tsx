@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,9 +16,10 @@ import { ModeToggle } from "@/components/mode-toggle"
 
 // Types for metadata.json
 interface WidgetMetadata {
-  publisher: string
-  "widget-name": string
-  description: string
+  publisher: string;
+  "widget-name": string;
+  recommended_size?: "M" | "L" | "XL";
+  description: string;
 }
 
 interface WidgetData {
@@ -172,26 +174,33 @@ function App() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredWidgets.map((widget) => (
-            <Card key={widget.id} className="group flex flex-col overflow-hidden border-border/50 bg-card/50 transition-all hover:border-primary/50 hover:shadow-lg">
-              <div className="aspect-video relative overflow-hidden border-b bg-muted">
-                {/* Static Thumbnail (Priority) */}
-                {widget.thumbnailUrl ? (
-                  <img 
-                    src={widget.thumbnailUrl} 
-                    alt={widget.metadata["widget-name"]}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/50 text-muted-foreground">
-                    <Monitor className="h-8 w-8 opacity-20" />
-                    <span className="text-[10px] font-medium uppercase tracking-wider opacity-60">No thumbnail provided for this widget</span>
-                  </div>
-                )}
-              </div>
+          {filteredWidgets.map((widget) => {
+            const size = widget.metadata.recommended_size || "M";
+            const aspectClass = size === "XL" ? "aspect-[32/9]" : size === "L" ? "aspect-[2/1]" : "aspect-[1.185/1]";
+
+            return (
+              <Card key={widget.id} className="group flex flex-col overflow-hidden border-border/50 bg-card/50 transition-all hover:border-primary/50 hover:shadow-lg">
+                <div className={`${aspectClass} relative overflow-hidden border-b bg-muted`}>
+                  {/* Static Thumbnail (Priority) */}
+                  {widget.thumbnailUrl ? (
+                    <img 
+                      src={widget.thumbnailUrl} 
+                      alt={widget.metadata["widget-name"]}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/50 text-muted-foreground">
+                      <Monitor className="h-8 w-8 opacity-20" />
+                      <span className="text-[10px] font-medium uppercase tracking-wider opacity-60">No thumbnail provided for this widget</span>
+                    </div>
+                  )}
+                </div>
               <CardHeader className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="line-clamp-1 text-lg">{widget.metadata["widget-name"]}</CardTitle>
+                  <Badge variant="secondary" className="text-[10px] font-bold">
+                    {size}
+                  </Badge>
                 </div>
                 <CardDescription className="line-clamp-2 h-10 text-xs">
                   {widget.metadata.description}
@@ -252,7 +261,8 @@ function App() {
                 </Button>
               </CardFooter>
             </Card>
-          ))}
+            );
+          })}
         </div>
 
         {filteredWidgets.length === 0 && (

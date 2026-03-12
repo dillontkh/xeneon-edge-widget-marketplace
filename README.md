@@ -22,6 +22,7 @@ Every widget folder **must** contain exactly these 3 files:
 {
   "publisher": "Your Name or GitHub Username",
   "widget-name": "The Display Title",
+  "recommended_size": "M", // "M" | "L" | "XL" (iFrame widget size)
   "description": "A short description of what your widget does."
 }
 ```

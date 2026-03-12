@@ -1,5 +1,6 @@
 {
   "publisher": "Sample",
   "widget-name": "Minimal Weather",
+  "recommended_size": "M",
   "description": "Compact weather widget showing current temperature."
 }

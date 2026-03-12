@@ -1,5 +1,6 @@
 {
   "publisher": "Sample",
   "widget-name": "Digital Clock",
+  "recommended_size": "M",
   "description": "A clean, modern digital clock with date and time."
 }
