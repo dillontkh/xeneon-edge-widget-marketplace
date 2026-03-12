@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F1 Race Weekend Widget</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- JetBrains Mono Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --transition-speed: 0.15s;
+      --pulse-duration: 1.2s;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background-color: #000000;
+      color: #e4e4e7;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0.5vh 0.3vw;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      color: #71717a;
+      cursor: pointer;
+      transition: color var(--transition-speed) ease, opacity var(--transition-speed) ease;
+    }
+
+    .nav-btn:hover:not(:disabled) {
+      color: #00f2ff;
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .nav-btn:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+
+    .status-upcoming {
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      color: #00f2ff;
+    }
+
+    .status-live {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #ef4444;
+      animation: pulse var(--pulse-duration) infinite;
+    }
+
+    .status-finished {
+      background: rgba(113, 113, 122, 0.15);
+      border: 1px solid rgba(113, 113, 122, 0.2);
+      color: #71717a;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
+    .jump-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      width: 100%;
+      padding: 0.4vh 0;
+      margin-top: 0.5vh;
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: 6px;
+      color: #00f2ff;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: background var(--transition-speed) ease, transform var(--transition-speed) ease;
+    }
+
+    .jump-btn:hover {
+      background: rgba(6, 182, 212, 0.2);
+    }
+
+    .jump-btn:active {
+      transform: scale(0.98);
+    }
+
+    .animate-pulse-urgent {
+      animation: pulse var(--pulse-duration) cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="bg-black">
+  <div id="app" class="w-full h-full">
+    <!-- App will be rendered here -->
+  </div>
+
+  <script>
+    (function() {
+      // --- Constants ---
+      const TIME = {
+        SEC: 1000,
+        MIN: 60000,
+        HOUR: 3600000,
+        DAY: 86400000
+      };
+
+      const CONFIG = {
+        SESSIONS_URL: "https://api.openf1.org/v1/sessions",
+        MEETINGS_URL: "https://api.openf1.org/v1/meetings",
+        CACHE_KEY: 'f1_widget_cache',
+        CACHE_TTL: TIME.DAY,
+        DEFAULT_SVG: "M 0,-50 Q 80,-50 80,0 Q 80,50 0,50 Q -80,50 -80,0 Q -80,-50 0,-50 Z"
+      };
+
+      // --- State ---
+      const state = {
+        meeting: null,
+        sessions: [],
+        circuitSvg: CONFIG.DEFAULT_SVG,
+        finishLine: null,
+        loading: true,
+        error: null,
+        year: null,
+        offset: 0,
+        hasNext: false,
+        hasPrev: false,
+        isUrgent: false,
+        countdownText: '',
+        loadingProgress: { loading: false, progress: '' }
+      };
+
+      let cache = { sessions: [], meetings: [], circuitSvgs: {}, cachedAt: 0 };
+      let tickInterval = null;
+
+      // --- Utilities ---
+      const escapeHTML = (str) => {
+        if (!str) return '';
+        return str.replace(/[&<>"']/g, m => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[m]);
+      };
+
+      // --- Storage ---
+      function loadCache() {
+        const stored = localStorage.getItem(CONFIG.CACHE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Date.now() - parsed.cachedAt < CONFIG.CACHE_TTL) {
+            cache = parsed;
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function saveCache() {
+        cache.cachedAt = Date.now();
+        localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify(cache));
+      }
+
+      // --- Data Fetching ---
+      async function fetchData() {
+        state.loadingProgress = { loading: true, progress: 'Syncing F1 Data...' };
+        renderFull();
+
+        try {
+          if (!state.year) {
+            const latestResp = await fetch(`${CONFIG.MEETINGS_URL}?meeting_key=latest`);
+            const latestData = await latestResp.json();
+            state.year = (latestData && latestData[0]) ? new Date(latestData[0].date_start).getFullYear() : new Date().getFullYear();
+          }
+
+          const [sResp, mResp] = await Promise.all([
+            fetch(`${CONFIG.SESSIONS_URL}?year=${state.year}`),
+            fetch(`${CONFIG.MEETINGS_URL}?year=${state.year}`)
+          ]);
+
+          if (!sResp.ok || !mResp.ok) throw new Error('API unreachable');
+
+          cache.sessions = await sResp.json();
+          cache.meetings = await mResp.json();
+          saveCache();
+          return true;
+        } catch (e) {
+          state.error = 'Connection Failure';
+          console.error(e);
+          return false;
+        } finally {
+          state.loadingProgress.loading = false;
+        }
+      }
+
+      async function getCircuitSvg(url, circuitKey) {
+        if (cache.circuitSvgs[url]) return cache.circuitSvgs[url];
+
+        const fallbackMadrid = "M -250,150 L 50,150 C 80,150 100,130 100,100 L 100,-50 C 100,-80 120,-100 150,-100 L 300,-100 C 350,-100 380,-50 350,0 C 320,50 250,80 200,50 L 0,-50 C -30,-70 -50,-50 -50,-20 L -50,50 C -50,80 -70,100 -100,100 L -300,100 C -330,100 -350,120 -350,150 Z";
+
+        try {
+          const resp = await fetch(url);
+          if (!resp.ok) {
+            if (circuitKey === 153 || /madrid/i.test(url)) {
+              return { path: fallbackMadrid, finishLine: null };
+            }
+            return null;
+          }
+
+          const data = await resp.json();
+          const { x: xCoords = [], y: yCoords = [], rotation = 0 } = data;
+          if (!xCoords.length || xCoords.length !== yCoords.length) return null;
+
+          const minX = Math.min(...xCoords), maxX = Math.max(...xCoords);
+          const minY = Math.min(...yCoords), maxY = Math.max(...yCoords);
+          const width = maxX - minX, height = maxY - minY;
+          const centerX = (maxX + minX) / 2, centerY = (maxY + minY) / 2;
+
+          const scale = 700 / Math.max(width, height);
+          const rad = (rotation * Math.PI) / 180;
+          const cosR = Math.cos(rad), sinR = Math.sin(rad);
+
+          const normalized = xCoords.map((x, i) => {
+            const nx = (x - centerX) * scale, ny = (yCoords[i] - centerY) * scale;
+            return [nx * cosR - ny * sinR, nx * sinR + ny * cosR];
+          });
+
+          let path = `M ${normalized[0][0].toFixed(2)},${normalized[0][1].toFixed(2)}`;
+          for (let i = 1; i < normalized.length; i++) {
+            path += ` L ${normalized[i][0].toFixed(2)},${normalized[i][1].toFixed(2)}`;
+          }
+          path += " Z";
+
+          const dx = normalized[1][0] - normalized[0][0], dy = normalized[1][1] - normalized[0][1];
+          const len = Math.hypot(dx, dy);
+          
+          const result = {
+            path,
+            finishLine: { 
+              x: normalized[0][0], 
+              y: normalized[0][1], 
+              px: len > 0 ? -dy/len : 0, 
+              py: len > 0 ? dx/len : 1,
+              tx: len > 0 ? dx/len : 1,
+              ty: len > 0 ? dy/len : 0
+            }
+          };
+
+          cache.circuitSvgs[url] = result;
+          saveCache();
+          return result;
+        } catch (e) {
+          if (circuitKey === 153 || /madrid/i.test(url)) {
+            return { path: fallbackMadrid, finishLine: null };
+          }
+          return null;
+        }
+      }
+
+      // --- App Logic ---
+      async function updateWeekendData() {
+        state.loading = true;
+        renderFull();
+
+        if (!cache.meetings.length && !(await fetchData())) {
+          state.loading = false;
+          renderFull();
+          return;
+        }
+
+        const now = new Date();
+        const past = [], future = [];
+
+        cache.meetings.forEach(m => {
+          const end = new Date(m.date_end), start = new Date(m.date_start);
+          (end < now ? past : future).push({ date: end < now ? end : start, meeting: m });
+        });
+
+        past.sort((a, b) => b.date - a.date);
+        future.sort((a, b) => a.date - b.date);
+
+        state.hasNext = state.offset < future.length - 1;
+        state.hasPrev = state.offset > -past.length;
+
+        const target = state.offset >= 0 ? future[state.offset]?.meeting : past[Math.abs(state.offset) - 1]?.meeting;
+
+        if (!target) {
+          state.error = 'No schedule found';
+          state.loading = false;
+          renderFull();
+          return;
+        }
+
+        state.sessions = cache.sessions
+          .filter(s => s.meeting_key === target.meeting_key)
+          .sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
+
+        state.meeting = {
+          name: target.meeting_name || 'Race',
+          location: target.location || '',
+          country: target.country_name || '',
+          start: target.date_start,
+          end: target.date_end,
+          isTesting: /test/i.test(target.meeting_name)
+        };
+
+        const svgData = target.circuit_info_url ? await getCircuitSvg(target.circuit_info_url, target.circuit_key) : null;
+        state.circuitSvg = svgData?.path || CONFIG.DEFAULT_SVG;
+        state.finishLine = svgData?.finishLine || null;
+
+        state.loading = false;
+        updateTimerData();
+        renderFull();
+      }
+
+      function updateTimerData() {
+        const now = new Date();
+        const next = state.sessions.find(s => new Date(s.date_start) > now);
+
+        if (!next) {
+          const live = state.sessions.find(s => now >= new Date(s.date_start) && now <= new Date(s.date_end));
+          state.countdownText = live ? 'LIVE NOW' : 'Weekend Over';
+          state.isUrgent = !!live;
+          return;
+        }
+
+        const diff = new Date(next.date_start) - now;
+        const days = Math.floor(diff / TIME.DAY), hours = Math.floor((diff % TIME.DAY) / TIME.HOUR), mins = Math.floor((diff % TIME.HOUR) / TIME.MIN);
+
+        if (days > 0) {
+          state.countdownText = `${days}D ${hours}H`;
+          state.isUrgent = false;
+        } else {
+          state.countdownText = hours > 0 ? `${hours}H ${mins}M` : `${mins}M`;
+          state.isUrgent = hours < 2;
+        }
+      }
+
+      // --- Rendering ---
+      function renderFull() {
+        const app = document.getElementById('app');
+        if (state.loading) {
+          app.innerHTML = `<div class="flex h-full items-center justify-center text-[10px] text-zinc-500 uppercase tracking-widest animate-pulse">${state.loadingProgress.progress || 'Loading...'}</div>`;
+          return;
+        }
+
+        if (state.error) {
+          app.innerHTML = `<div class="flex flex-col h-full items-center justify-center gap-4">
+            <div class="text-red-400 text-xs uppercase tracking-widest">${state.error}</div>
+            <button onclick="F1App.retry()" class="text-[10px] text-zinc-500 underline uppercase">Retry Sync</button>
+          </div>`;
+          return;
+        }
+
+        const { meeting, sessions, circuitSvg, finishLine, countdownText, isUrgent, hasNext, hasPrev, offset } = state;
+
+        app.innerHTML = `
+          <div class="flex flex-col relative h-full p-[1.5vh_1.2vw]">
+            <div class="w-full h-[40%] flex justify-center items-center pointer-events-none mb-2">
+              <svg viewBox="-400 -400 800 800" class="w-full h-full">
+                <path d="${circuitSvg}" fill="none" stroke="#00f2ff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 12px rgba(0,242,255,0.3))" />
+                ${finishLine ? `
+                  <line x1="${finishLine.x - finishLine.px*25}" y1="${finishLine.y - finishLine.py*25}" x2="${finishLine.x + finishLine.px*25}" y2="${finishLine.y + finishLine.py*25}" stroke="white" stroke-width="12" stroke-linecap="round" />
+                  <path d="M ${finishLine.x + (finishLine.tx || finishLine.py)*40 - finishLine.px*12} ${finishLine.y + (finishLine.ty || -finishLine.px)*40 - finishLine.py*12} L ${finishLine.x + (finishLine.tx || finishLine.py)*60} ${finishLine.y + (finishLine.ty || -finishLine.px)*60} L ${finishLine.x + (finishLine.tx || finishLine.py)*40 + finishLine.px*12} ${finishLine.y + (finishLine.ty || -finishLine.px)*40 + finishLine.py*12}" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+                ` : ''}
+              </svg>
+            </div>
+
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-1">
+                <button class="nav-btn" onclick="F1App.nav(-1)" ${!hasPrev ? 'disabled' : ''}><i data-lucide="chevron-left"></i></button>
+                <div class="text-xl font-bold uppercase italic leading-tight ${meeting.isTesting ? 'text-amber-400' : 'text-white'}">
+                  ${escapeHTML(meeting.name).replace('Grand Prix', 'GP')}
+                </div>
+              </div>
+              <div class="flex items-center gap-1">
+                <span id="timer-display" class="text-xl font-bold tracking-tight ${isUrgent ? 'animate-pulse-urgent' : ''}" style="color: #00f2ff;">${countdownText}</span>
+                <button class="nav-btn" onclick="F1App.nav(1)" ${!hasNext ? 'disabled' : ''}><i data-lucide="chevron-right"></i></button>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[10px] text-zinc-400 uppercase tracking-widest mb-3">
+              <span>${escapeHTML(meeting.location)}, ${escapeHTML(meeting.country)}</span>
+              <span class="bg-zinc-800/50 px-2 py-0.5 rounded">${formatRange(meeting.start, meeting.end)}</span>
+            </div>
+
+            ${offset !== 0 ? `<button class="jump-btn mb-3" onclick="F1App.jump()"><i data-lucide="circle-dot" class="w-3.5"></i><span>Return to Current</span></button>` : ''}
+
+            <div class="flex-1 overflow-hidden">
+              <div class="text-[9px] text-zinc-500 uppercase font-bold mb-1">Schedule</div>
+              <div class="flex flex-col gap-1">
+                ${sessions.map(s => renderSessionRow(s)).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+        lucide.createIcons();
+      }
+
+      function renderSessionRow(s) {
+        const now = new Date(), start = new Date(s.date_start), end = new Date(s.date_end);
+        let status = { text: '', class: '' };
+
+        if (now < start) {
+          const diff = start - now;
+          if (diff < TIME.DAY) {
+            const h = Math.floor(diff/TIME.HOUR), m = Math.floor((diff%TIME.HOUR)/TIME.MIN);
+            status = { text: h > 0 ? `${h}h ${m}m` : `${m}m`, class: 'status-upcoming' };
+          }
+        } else if (now <= end) {
+          status = { text: 'LIVE', class: 'status-live' };
+        } else {
+          status = { text: '✓', class: 'status-finished' };
+        }
+
+        const date = new Date(s.date_start);
+        return `
+          <div class="flex items-center justify-between p-[0.6vh_0.8vw] bg-zinc-800/30 rounded border border-white/5 gap-2">
+            <div class="flex items-center gap-2 text-xs">
+              <span class="opacity-50">${date.toLocaleDateString(undefined, {weekday: 'short'})}</span>
+              <span class="font-bold">${date.toLocaleTimeString(undefined, {hour: '2-digit', minute:'2-digit', hour12:false})}</span>
+            </div>
+            <div class="flex-1 text-xs font-semibold uppercase truncate">${escapeHTML(s.session_name)}</div>
+            ${status.text ? `<div class="text-[9px] font-bold px-1.5 py-0.5 rounded min-w-[45px] text-center ${status.class}">${status.text}</div>` : ''}
+          </div>
+        `;
+      }
+
+      function formatRange(s, e) {
+        const opt = { month: 'short', day: 'numeric', year: 'numeric' };
+        return `${new Date(s).toLocaleDateString(undefined, opt)} - ${new Date(e).toLocaleDateString(undefined, opt)}`;
+      }
+
+      function fastTick() {
+        updateTimerData();
+        const el = document.getElementById('timer-display');
+        if (el) {
+          el.textContent = state.countdownText;
+          el.className = `text-xl font-bold tracking-tight ${state.isUrgent ? 'animate-pulse-urgent' : ''}`;
+        }
+      }
+
+      // --- Exports ---
+      window.F1App = {
+        nav: (d) => { state.offset += d; updateWeekendData(); },
+        jump: () => { state.offset = 0; updateWeekendData(); },
+        retry: () => { fetchData().then(updateWeekendData); }
+      };
+
+      // --- Init ---
+      loadCache();
+      updateWeekendData();
+      setInterval(fastTick, TIME.SEC);
+    })();
+  </script>
+</body>
+</html>
