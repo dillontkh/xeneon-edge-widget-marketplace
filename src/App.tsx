@@ -139,7 +139,7 @@ function App() {
 {`{
   "publisher": "Your Name",
   "widget-name": "Widget Title",
-  "recommended_size": "M",
+  "recommended_size": "M", // Optional, can be "M", "L", or "XL"
   "description": "Short description"
 }`}                    </pre>
                   </div>
