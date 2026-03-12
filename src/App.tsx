@@ -204,7 +204,7 @@ function App() {
             const aspectClass = size === "XL" ? "aspect-[32/9]" : size === "L" ? "aspect-[2/1]" : "aspect-[1.185/1]";
 
             return (
-              <Card key={widget.id} className="group flex flex-col overflow-hidden border-border/50 bg-card/50 transition-all hover:border-primary/50 hover:shadow-lg">
+              <Card key={widget.id} className="group flex flex-col overflow-hidden pt-0 bg-card/50 transition-all hover:ring-primary/50 hover:shadow-lg">
                 <div className={`${aspectClass} relative overflow-hidden border-b bg-muted`}>
                   {/* Static Thumbnail (Priority) */}
                   {widget.thumbnailUrl ? (
@@ -220,7 +220,7 @@ function App() {
                     </div>
                   )}
                 </div>
-              <CardHeader className="p-4">
+              <CardHeader className="p-4 pt-0">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="line-clamp-1 text-lg">{widget.metadata["widget-name"]}</CardTitle>
                   <Badge variant="secondary" className="text-[10px] font-bold">
