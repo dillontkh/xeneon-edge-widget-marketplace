@@ -82,22 +82,31 @@ function App() {
             <div className="rounded-lg bg-primary p-1.5 text-primary-foreground">
               <Monitor className="h-5 w-5" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Xeneon Edge Marketplace</h1>
+            <div className="hidden lg:block">
+              <h1 className="text-xl font-bold tracking-tight">Xeneon Edge Widget Marketplace</h1>
               <p className="text-xs text-muted-foreground">Community Widgets for Corsair Xeneon Edge</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="relative hidden md:block">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:block">
+            <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search widgets..."
-                className="w-64 pl-9"
+                className="w-64 lg:w-96 pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+          </div>
+          
+          <div className="flex items-center gap-2 md:gap-4">
+            <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
+              <a href="https://github.com/dillontkh/xeneon-edge-widget-marketplace" target="_blank" rel="noreferrer">
+                <Github className="h-5 w-5" />
+                <span className="sr-only">GitHub</span>
+              </a>
+            </Button>
             
             <ModeToggle />
 
@@ -105,7 +114,8 @@ function App() {
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
-                  Submit Widget
+                  <span className="hidden sm:inline">Submit Widget</span>
+                  <span className="sm:hidden">Submit</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[550px]">
@@ -139,7 +149,8 @@ function App() {
                    <Github className="mr-2 h-4 w-4" />
                    Open Repository
                  </a>
-                </Button>              </DialogContent>
+                </Button>
+              </DialogContent>
             </Dialog>
           </div>
         </div>
@@ -266,18 +277,11 @@ function App() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t py-6 md:py-0">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 md:h-16 md:flex-row">
-          <p className="text-sm text-muted-foreground">
-            &copy; 2026 Corsair Xeneon Edge Widget Marketplace
+      <footer className="border-t py-6">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-xs text-muted-foreground">
+            This project is an independent community initiative and is not affiliated with, authorized, maintained, sponsored, or endorsed by Corsair in any way.
           </p>
-          <div className="flex items-center gap-4 text-muted-foreground">
-            <a href="https://github.com/dillontkh/xeneon-edge-widget-marketplace" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-foreground">
-              <Github className="h-4 w-4" />
-              <span className="text-xs">GitHub Repo</span>
-            </a>
-          </div>
         </div>
       </footer>
     </div>
