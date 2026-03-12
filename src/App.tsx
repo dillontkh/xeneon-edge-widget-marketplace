@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Search, Plus, Copy, ExternalLink, Github, Monitor } from "lucide-react"
+import { Search, Plus, Copy, ExternalLink, Github, Monitor, Check } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
 
 // Types for metadata.json
@@ -32,8 +32,9 @@ const metadataModules = import.meta.glob<{ default: WidgetMetadata }>('/widgets/
 const htmlModules = import.meta.glob<string>('/widgets/*/widget.html', { query: '?raw', import: 'default', eager: true });
 const thumbnailModules = import.meta.glob<string>('/widgets/*/thumbnail.png', { query: '?url', import: 'default', eager: true });
 
-export function App() {
-  const [search, setSearch] = useState("")
+function App() {
+  const [search, setSearch] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   
   // Transform the glob imports into a usable array
   const widgets: WidgetData[] = useMemo(() => {
@@ -56,10 +57,11 @@ export function App() {
     w.metadata.publisher.toLowerCase().includes(search.toLowerCase())
   )
 
-  const handleCopyCode = async (html: string) => {
+  const handleCopyCode = async (id: string, html: string) => {
     try {
       await navigator.clipboard.writeText(html)
-      alert("HTML code copied to clipboard!")
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 1000)
     } catch (err) {
       console.error("Error copying code:", err)
     }
@@ -98,7 +100,7 @@ export function App() {
             </div>
             
             <ModeToggle />
-            
+
             <Dialog>
               <DialogTrigger asChild>
                 <Button>
@@ -205,24 +207,50 @@ export function App() {
                   <span>By {widget.metadata.publisher}</span>
                 </div>
               </CardContent>
-              <CardFooter className="grid grid-cols-2 gap-2 p-4 pt-0">
+              <CardFooter className="flex flex-col gap-2 p-4 pt-0">
+                <div className="grid grid-cols-2 gap-2 w-full">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full text-xs"
+                    onClick={() => handleCopyCode(widget.id, widget.html)}
+                  >
+                    {copiedId === widget.id ? (
+                      <>
+                        <Check className="mr-2 h-3 w-3 text-green-500" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-2 h-3 w-3" />
+                        Copy Code
+                      </>
+                    )}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full text-xs"
+                    onClick={() => handlePreviewFull(widget.html)}
+                  >
+                    <ExternalLink className="mr-2 h-3 w-3" />
+                    Full Preview
+                  </Button>
+                </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   className="w-full text-xs"
-                  onClick={() => handleCopyCode(widget.html)}
+                  asChild
                 >
-                  <Copy className="mr-2 h-3 w-3" />
-                  Copy Code
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full text-xs"
-                  onClick={() => handlePreviewFull(widget.html)}
-                >
-                  <ExternalLink className="mr-2 h-3 w-3" />
-                  Full Preview
+                  <a 
+                    href={`https://github.com/dillontkh/xeneon-edge-widget-marketplace/blob/master/widgets/${widget.id}/widget.html`} 
+                    target="_blank" 
+                    rel="noreferrer"
+                  >
+                    <Github className="mr-2 h-3 w-3" />
+                    View Code on GitHub
+                  </a>
                 </Button>
               </CardFooter>
             </Card>
@@ -253,7 +281,7 @@ export function App() {
         </div>
       </footer>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
