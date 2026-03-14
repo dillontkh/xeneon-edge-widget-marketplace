@@ -370,15 +370,15 @@
         "https://api.allorigins.win/raw?url=",
         "https://corsproxy.io/?url="
     ];
-    async function apiFetch(url) {
+    async function apiFetch(url, { allowNonOk = true } = {}) {
         try {
             const r = await fetch(url);
-            if (r.ok) return r;
+            if (r.ok || allowNonOk) return r;
         } catch (e) { /* CORS or network */ }
         for (const p of CORS_PROXIES) {
             try {
                 const r = await fetch(p + encodeURIComponent(url));
-                if (r.ok) return r;
+                if (r.ok || allowNonOk) return r;
             } catch (e) { /* try next */ }
         }
         throw new Error("Failed to fetch");
@@ -428,9 +428,24 @@
     };
     const LANG_MAP = { ru: "ru", de: "de", fr: "fr", es: "es", ja: "ja", zh: "zh", ar: "ar", pt: "pt", hi: "hi" };
     const DATE_LOCALE = { en: "en-US", ru: "ru-RU", de: "de-DE", fr: "fr-FR", es: "es-ES", ja: "ja-JP", zh: "zh-CN", ar: "ar-SA", pt: "pt-BR", hi: "hi-IN" };
-    let lang = localStorage.getItem("exchange_lang") || LANG_MAP[navigator.language?.split("-")[0]] || "en";
+
+    const STORAGE_PREFIX = "crypto_market_live_";
+    const STORAGE_KEYS = {
+        lang: STORAGE_PREFIX + "lang",
+        activeAssets: STORAGE_PREFIX + "active_assets",
+        fiat: STORAGE_PREFIX + "fiat",
+        view: STORAGE_PREFIX + "view"
+    };
+    function getStoredValueWithFallback(newKey, oldKey) {
+        const newVal = localStorage.getItem(newKey);
+        if (newVal !== null) return newVal;
+        const oldVal = localStorage.getItem(oldKey);
+        return oldVal !== null ? oldVal : null;
+    }
+
+    let lang = getStoredValueWithFallback(STORAGE_KEYS.lang, "exchange_lang") || LANG_MAP[navigator.language?.split("-")[0]] || "en";
     function t(k) { return LANG[lang]?.[k] ?? LANG.en[k] ?? k; }
-    function setLang(code) { lang = code; localStorage.setItem("exchange_lang", lang); applyLang(); fetchPrices(); }
+    function setLang(code) { lang = code; localStorage.setItem(STORAGE_KEYS.lang, lang); applyLang(); fetchPrices(); }
     function applyLang() {
         document.title = t("title");
         const h2 = document.querySelector("#widget-container h2"); if (h2) h2.textContent = t("title");
@@ -448,13 +463,24 @@
         document.querySelector(".chart-modal-close")?.setAttribute("title", t("close"));
         const chartLoading = document.querySelector(".chart-loading"); if (chartLoading) chartLoading.textContent = t("loadingChart");
         const attrData = document.getElementById("attr-data"); if (attrData) attrData.textContent = t("data") + ": ";
-        const attrAuthor = document.getElementById("attr-author"); if (attrAuthor) attrAuthor.innerHTML = t("widgetBy").replace("KirjoZzZ", '<a href="https://github.com/KirjoZzZ" target="_blank" rel="noopener">KirjoZzZ</a>');
+        const attrAuthor = document.getElementById("attr-author"); if (attrAuthor) attrAuthor.innerHTML = t("widgetBy").replace("KirjoZzZ", '<a href="https://github.com/KirjoZzZ" target="_blank" rel="noopener noreferrer">KirjoZzZ</a>');
         const langSel = document.getElementById("lang-select"); if (langSel) langSel.value = lang;
     }
 
-    let activeAssets = JSON.parse(localStorage.getItem("exchange_active_assets")) || ["bitcoin", "ethereum", "binancecoin", "solana", "ripple"];
-    let fiatCurrency = localStorage.getItem("exchange_fiat") || "usd";
-    let viewMode = localStorage.getItem("exchange_view") || "cards";
+    const storedActiveAssets = getStoredValueWithFallback(STORAGE_KEYS.activeAssets, "exchange_active_assets");
+    let activeAssets = [];
+    if (storedActiveAssets) {
+        try {
+            activeAssets = JSON.parse(storedActiveAssets) || [];
+        } catch (e) {
+            activeAssets = [];
+        }
+    }
+    if (!Array.isArray(activeAssets) || activeAssets.length === 0) {
+        activeAssets = ["bitcoin", "ethereum", "binancecoin", "solana", "ripple"];
+    }
+    let fiatCurrency = getStoredValueWithFallback(STORAGE_KEYS.fiat, "exchange_fiat") || "usd";
+    let viewMode = getStoredValueWithFallback(STORAGE_KEYS.view, "exchange_view") || "cards";
     let refreshIntervalId = null;
     let allCoins = [];
     const COINS_CACHE_KEY = "coingecko_coins_list";
@@ -462,7 +488,7 @@
 
     function setView(mode) {
         viewMode = mode;
-        localStorage.setItem("exchange_view", viewMode);
+        localStorage.setItem(STORAGE_KEYS.view, viewMode);
         document.getElementById("view-cards").classList.toggle("active", mode === "cards");
         document.getElementById("view-compact").classList.toggle("active", mode === "compact");
         document.getElementById("ticker-grid").classList.toggle("compact", mode === "compact");
@@ -489,9 +515,9 @@
 
     function saveSettings() {
         fiatCurrency = document.getElementById("fiat-select").value;
-        localStorage.setItem("exchange_fiat", fiatCurrency);
+        localStorage.setItem(STORAGE_KEYS.fiat, fiatCurrency);
         activeAssets = [...document.querySelectorAll(".asset-chip")].map(c => c.dataset.coinId);
-        localStorage.setItem("exchange_active_assets", JSON.stringify(activeAssets));
+        localStorage.setItem(STORAGE_KEYS.activeAssets, JSON.stringify(activeAssets));
         closeSettings();
         fetchPrices();
     }
@@ -640,7 +666,7 @@
             if (needRebuild) {
                 grid.innerHTML = "";
                 for (const coin of sorted) {
-                    grid.appendChild(buildCard(coin));
+                    grid.appendChild(buildCard(coin, vs));
                 }
                 loadAllCharts(grid.querySelectorAll(".asset-card[data-coin-id]"), coinMap);
             } else {
@@ -651,7 +677,7 @@
                     const change = coin.price_change_percentage_24h;
                     const changeClass = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
                     const changeText = change != null ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—";
-                    card.querySelector(".asset-price").textContent = formatPrice(price, fiatCurrency);
+                    card.querySelector(".asset-price").textContent = formatPrice(price, vs);
                     const changeEl = card.querySelector(".asset-change");
                     changeEl.textContent = changeText + " 24h";
                     changeEl.className = "asset-change " + changeClass;
@@ -664,56 +690,123 @@
             const isCors = err.message?.includes("Failed to fetch") || err.name === "TypeError";
             const hint = isCors ? t("corsHint") : t("networkHint");
             grid.innerHTML = '<div class="message">' + t("loadError") + hint + ' <button class="primary" onclick="fetchPrices()" style="margin-top:10px">' + t("retry") + '</button></div>';
-            setTimeout(fetchPrices, 15000);
         }
     }
 
-    function buildCard(coin) {
+    function buildCard(coin, currencyKey) {
         const price = coin.current_price ?? 0;
         const change = coin.price_change_percentage_24h;
         const changeClass = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
         const changeText = change != null ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—";
-        const imgUrl = (coin.image || "").replace("/large/", "/small/");
-        const escAttr = s => String(s || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+        let imgUrl = (coin.image || "").replace("/large/", "/small/");
+        if (!/^https?:\/\//.test(imgUrl)) {
+            imgUrl = "https://assets.coingecko.com/coins/images/1/small/bitcoin.png";
+        }
+        const cur = currencyKey || "usd";
         const card = document.createElement("div");
         card.className = "asset-card";
-        card.dataset.coinId = coin.id;
+        if (coin.id != null) card.dataset.coinId = String(coin.id);
         card.draggable = true;
-        card.innerHTML = `
-            <div class="asset-card-main">
-                <div class="asset-header">
-                    <div class="asset-info">
-                        <img src="${imgUrl}" class="asset-logo" alt="${coin.symbol}" onerror="this.src='https://assets.coingecko.com/coins/images/1/small/bitcoin.png'">
-                        <div>
-                            <div class="asset-name">${coin.name}</div>
-                            <div class="asset-symbol">${coin.symbol.toUpperCase()}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="asset-price">${formatPrice(price, fiatCurrency)}</div>
-                <div class="asset-change ${changeClass}">${changeText} 24h</div>
-            </div>
-            <div class="asset-chart-wrap">
-                <div class="chart-expand-row">
-                    <button type="button" class="chart-expand-btn" draggable="false" data-coin-id="${escAttr(coin.id)}" data-coin-name="${escAttr(coin.name)}" data-coin-symbol="${escAttr((coin.symbol||'').toUpperCase())}" onclick="openChartModal(this)" title="${escAttr(t('expandChart'))}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
-                    </button>
-                </div>
-                <canvas width="90" height="60"></canvas>
-                <span class="chart-label">24h</span>
-            </div>
-        `;
+
+        const main = document.createElement("div");
+        main.className = "asset-card-main";
+
+        const header = document.createElement("div");
+        header.className = "asset-header";
+
+        const assetInfo = document.createElement("div");
+        assetInfo.className = "asset-info";
+
+        const logo = document.createElement("img");
+        logo.className = "asset-logo";
+        logo.src = imgUrl;
+        logo.alt = String(coin.symbol || "");
+        logo.onerror = function() {
+            this.onerror = null;
+            this.src = "https://assets.coingecko.com/coins/images/1/small/bitcoin.png";
+        };
+
+        const nameSymbolWrap = document.createElement("div");
+        const nameDiv = document.createElement("div");
+        nameDiv.className = "asset-name";
+        nameDiv.textContent = coin.name != null ? String(coin.name) : "";
+        const symbolDiv = document.createElement("div");
+        symbolDiv.className = "asset-symbol";
+        symbolDiv.textContent = (coin.symbol || "").toString().toUpperCase();
+
+        nameSymbolWrap.appendChild(nameDiv);
+        nameSymbolWrap.appendChild(symbolDiv);
+        assetInfo.appendChild(logo);
+        assetInfo.appendChild(nameSymbolWrap);
+        header.appendChild(assetInfo);
+
+        const priceDiv = document.createElement("div");
+        priceDiv.className = "asset-price";
+        priceDiv.textContent = formatPrice(price, cur);
+
+        const changeDiv = document.createElement("div");
+        changeDiv.className = "asset-change " + changeClass;
+        changeDiv.textContent = changeText + " 24h";
+
+        main.appendChild(header);
+        main.appendChild(priceDiv);
+        main.appendChild(changeDiv);
+
+        const chartWrap = document.createElement("div");
+        chartWrap.className = "asset-chart-wrap";
+
+        const chartExpandRow = document.createElement("div");
+        chartExpandRow.className = "chart-expand-row";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "chart-expand-btn";
+        button.draggable = false;
+        if (coin.id != null) button.dataset.coinId = String(coin.id);
+        if (coin.name != null) button.dataset.coinName = String(coin.name);
+        button.dataset.coinSymbol = (coin.symbol || "").toString().toUpperCase();
+        button.title = t("expandChart");
+        button.addEventListener("click", function() { openChartModal(button); });
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("fill", "none");
+        svg.setAttribute("stroke", "currentColor");
+        svg.setAttribute("stroke-width", "2");
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("d", "M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3");
+        svg.appendChild(path);
+        button.appendChild(svg);
+        chartExpandRow.appendChild(button);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 90;
+        canvas.height = 60;
+
+        const chartLabel = document.createElement("span");
+        chartLabel.className = "chart-label";
+        chartLabel.textContent = "24h";
+
+        chartWrap.appendChild(chartExpandRow);
+        chartWrap.appendChild(canvas);
+        chartWrap.appendChild(chartLabel);
+
+        card.appendChild(main);
+        card.appendChild(chartWrap);
         return card;
     }
 
     const CRYPTOCOMPARE_API = "https://min-api.cryptocompare.com/data/v2/histohour";
+    let chartLoadBatchId = 0;
 
-    async function loadChart(card, coin, delayMs = 0) {
-        if (delayMs > 0) await new Promise(r => setTimeout(r, delayMs));
+    async function loadChart(card, coin) {
         if (!card || !document.contains(card)) return;
         const sym = (coin.symbol || coin.id || "").toUpperCase();
         if (!sym || sym === "USDT" || sym === "USDC") return;
-        const tsym = (fiatCurrency || "usd").toUpperCase();
+        const supported = ["usd","eur","gbp","jpy","chf","cad","aud","rub","cny","krw","inr","brl","mxn","pln","try","uah","btc","eth"];
+        const vs = supported.includes(fiatCurrency) ? fiatCurrency : "usd";
+        const tsym = vs.toUpperCase();
         try {
             const res = await apiFetch(`${CRYPTOCOMPARE_API}?fsym=${sym}&tsym=${tsym}&limit=24`);
             const json = await res.json();
@@ -725,11 +818,20 @@
         } catch (e) { /* ignore */ }
     }
 
-    async function loadAllCharts(cards, coinMap) {
+    function loadAllCharts(cards, coinMap) {
+        if (!cards || !coinMap) return;
+        chartLoadBatchId++;
+        const batchId = chartLoadBatchId;
         for (let i = 0; i < cards.length; i++) {
             const card = cards[i];
             const coin = coinMap[card.dataset.coinId];
-            if (coin) await loadChart(card, coin, i * 1200);
+            if (!coin) continue;
+            const delay = i * 1200;
+            setTimeout(() => {
+                if (batchId !== chartLoadBatchId) return;
+                if (!card || !document.contains(card)) return;
+                loadChart(card, coin);
+            }, delay);
         }
     }
 
@@ -781,12 +883,29 @@
         let s = (coinSymbol || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
         if (coinId && COINGECKO_TO_BINANCE[coinId]) s = COINGECKO_TO_BINANCE[coinId];
         if (!s || s === "USDT" || s === "USDC" || s === "BUSD") return "BINANCE:BTCUSDT";
-        const cur = (fiatCurrency || "usd").toLowerCase();
+        const supported = ["usd","eur","gbp","jpy","chf","cad","aud","rub","cny","krw","inr","brl","mxn","pln","try","uah","btc","eth"];
+        const cur = (supported.includes(fiatCurrency) ? fiatCurrency : "usd").toLowerCase();
         const cfg = CURRENCY_EXCHANGES.find(c => c.cur === cur) || CURRENCY_EXCHANGES[0];
         return cfg.exchange + ":" + s + cfg.quote;
     }
 
+    function getTradingViewLocale() {
+        const langCode = (lang || "en").toLowerCase();
+        if (langCode.startsWith("de")) return "de";
+        if (langCode.startsWith("es")) return "es";
+        if (langCode.startsWith("fr")) return "fr";
+        if (langCode.startsWith("it")) return "it";
+        if (langCode.startsWith("ja")) return "ja";
+        if (langCode.startsWith("ko")) return "ko";
+        if (langCode.startsWith("pt")) return "pt";
+        if (langCode.startsWith("ru")) return "ru";
+        if (langCode === "zh-tw" || langCode === "zh_hant" || langCode === "zh-hant") return "zh_TW";
+        if (langCode.startsWith("zh")) return "zh";
+        return "en";
+    }
+
     function renderChartWithSymbol(symbol) {
+        const tradingViewLocale = getTradingViewLocale();
         const config = {
             autosize: true,
             symbol: symbol,
@@ -794,7 +913,7 @@
             timezone: "Etc/UTC",
             theme: "dark",
             style: "1",
-            locale: "en",
+            locale: tradingViewLocale,
             allow_symbol_change: true,
             calendar: false,
             support_host: "https://www.tradingview.com",
@@ -851,7 +970,7 @@
         const cards = grid.querySelectorAll(".asset-card[data-coin-id]");
         if (cards.length === 0) return;
         activeAssets = [...cards].map(c => c.dataset.coinId);
-        localStorage.setItem("exchange_active_assets", JSON.stringify(activeAssets));
+        localStorage.setItem(STORAGE_KEYS.activeAssets, JSON.stringify(activeAssets));
     }
 
     document.getElementById("ticker-grid").addEventListener("dragstart", function(e) {
