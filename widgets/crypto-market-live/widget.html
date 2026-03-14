@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Market Live</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --card-bg: #2a2a2a;
+            --text-main: #ffffff;
+            --text-sub: #b0b0b0;
+            --accent: #0d47a1;
+            --highlight: #00ff85;
+            --highlight-red: #ff4444;
+            --border: #444;
+            --modal-bg: rgba(0, 0, 0, 0.85);
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-main);
+            font-family: var(--font-family); overflow-x: hidden;
+            display: flex; flex-direction: column; min-height: 100vh;
+        }
+
+        html, body { scrollbar-width: none; }
+        html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
+
+        .widget-author { position: fixed; top: 12px; right: 12px; z-index: 50; font-size: 10px; color: var(--text-sub); opacity: 0.8; }
+        .widget-author a { color: var(--highlight); text-decoration: none; }
+        .widget-author a:hover { text-decoration: underline; }
+
+        #widget-container {
+            padding: 16px; max-width: 1200px; margin: 0 auto; width: 100%;
+            box-sizing: border-box; flex-grow: 1; padding-bottom: 40px;
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border);
+        }
+
+        .header-left { display: flex; flex-direction: column; gap: 4px; }
+        .header-right { display: flex; align-items: center; gap: 12px; padding-bottom: 4px; }
+
+        h2 { margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 1.2px; }
+
+        .date-display {
+            font-size: 13px; color: var(--text-sub); font-weight: 400; margin-top: 2px;
+        }
+
+        .live-indicator {
+            font-size: 11px; color: var(--highlight); display: flex; align-items: center; gap: 6px; font-weight: 600;
+        }
+
+        .dot {
+            height: 8px; width: 8px; background-color: var(--highlight); border-radius: 50%;
+            display: inline-block; animation: pulse 2s infinite;
+        }
+
+        .attribution-container {
+            display: flex; align-items: center; color: var(--text-sub);
+            font-weight: 400; font-size: 10px; opacity: 0.8;
+        }
+        .attribution-container a { margin-left: 4px; color: var(--highlight); text-decoration: none; }
+        .attribution-container .attr-sep { margin: 0 6px; opacity: 0.7; }
+        .attribution-container a:hover { text-decoration: underline; }
+
+        .settings-btn {
+            background: none; border: none; cursor: pointer; color: var(--text-sub);
+            padding: 8px; border-radius: 50%; transition: color 0.2s, background 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .settings-btn:hover { color: var(--text-main); background: rgba(255,255,255,0.1); }
+        .settings-btn svg { width: 20px; height: 20px; display: block; }
+
+        .view-toggle {
+            display: flex; align-items: center; gap: 4px; background: #333;
+            border-radius: 8px; padding: 2px; margin-right: 8px;
+        }
+        .view-toggle button {
+            background: none; border: none; color: var(--text-sub); padding: 6px 8px;
+            border-radius: 6px; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .view-toggle button svg { width: 18px; height: 18px; display: block; }
+        .view-toggle button:hover { color: var(--text-main); }
+        .view-toggle button.active { background: var(--card-bg); color: var(--highlight); }
+
+        #ticker-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;
+        }
+        #ticker-grid.compact { display: flex; flex-direction: column; gap: 4px; }
+        #ticker-grid.compact .asset-card {
+            flex-direction: row; align-items: center; padding: 10px 16px; gap: 16px;
+            display: grid; grid-template-columns: 1fr auto auto;
+        }
+        #ticker-grid.compact .asset-card .asset-card-main { display: contents; }
+        #ticker-grid.compact .asset-header { margin: 0; }
+        #ticker-grid.compact .asset-info .asset-logo { width: 28px; height: 28px; }
+        #ticker-grid.compact .asset-name { font-size: 14px; }
+        #ticker-grid.compact .asset-symbol { display: none; }
+        #ticker-grid.compact .asset-price { font-size: 16px; margin: 0; text-align: right; }
+        #ticker-grid.compact .asset-change { margin: 0; font-size: 12px; text-align: right; min-width: 60px; }
+
+        .asset-card {
+            background-color: var(--card-bg); border-radius: 12px; padding: 16px;
+            display: flex; flex-direction: row; gap: 12px; align-items: stretch;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3); position: relative;
+            border: 1px solid transparent;
+            transition: border-color 0.2s, transform 0.2s;
+            cursor: grab;
+        }
+        .asset-card .asset-card-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+        .asset-card .asset-chart-wrap {
+            width: 90px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+        }
+        .asset-card .asset-chart-wrap .chart-expand-row {
+            display: flex; justify-content: flex-end; width: 100%; margin-bottom: 2px;
+        }
+        .asset-card .asset-chart-wrap .chart-expand-btn {
+            background: none; border: none; cursor: pointer; color: var(--text-sub);
+            padding: 2px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+        }
+        .asset-card .asset-chart-wrap .chart-expand-btn:hover { color: var(--highlight); background: rgba(255,255,255,0.1); }
+        .asset-card .asset-chart-wrap .chart-expand-btn svg { width: 14px; height: 14px; }
+        .asset-card .asset-chart-wrap canvas { display: block; border-radius: 4px; }
+        .asset-card .asset-chart-wrap .chart-label { font-size: 9px; color: var(--text-sub); }
+        #ticker-grid.compact .asset-card .asset-chart-wrap { display: none; }
+
+        #chart-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #131722; z-index: 101; flex-direction: column;
+            padding: 0; margin: 0; box-sizing: border-box;
+            overflow: hidden;
+        }
+        #chart-modal.show { display: flex; }
+        body.chart-modal-open { overflow: hidden; }
+        #chart-modal::-webkit-scrollbar,
+        #chart-modal .chart-modal-content::-webkit-scrollbar,
+        #chart-modal .chart-widget-wrap::-webkit-scrollbar { display: none; }
+        #chart-modal, #chart-modal .chart-modal-content, #chart-modal .chart-widget-wrap { scrollbar-width: none; }
+        #chart-modal .chart-modal-content {
+            background: transparent; padding: 0; border: none;
+            width: 100%; height: 100%; display: flex; flex-direction: column; position: relative;
+        }
+        #chart-modal .chart-modal-header {
+            position: absolute; top: 12px; right: 12px; z-index: 10;
+            display: flex; align-items: center;
+        }
+        #chart-modal .chart-modal-close {
+            background: rgba(0,0,0,0.5); border: none; color: #fff; cursor: pointer;
+            padding: 10px; border-radius: 50%; display: flex;
+        }
+        #chart-modal .chart-modal-close:hover { color: var(--highlight); background: rgba(0,0,0,0.7); }
+        #chart-modal .chart-modal-close svg { width: 24px; height: 24px; }
+        #chart-modal .chart-widget-wrap {
+            flex: 1; min-height: 0; width: 100%; height: 100%; position: relative;
+            overflow: hidden;
+        }
+        #chart-modal iframe { overflow: hidden !important; }
+        #chart-modal .chart-widget-wrap .tradingview-widget-container { height: 100%; width: 100%; }
+        #chart-modal .chart-widget-wrap .tradingview-widget-container__widget { height: 100%; width: 100%; }
+        #chart-tradingview-container { height: 100%; width: 100%; display: flex; }
+        #chart-tradingview-container iframe { flex: 1; min-width: 0; min-height: 0; }
+        #chart-modal .chart-loading { color: var(--text-sub); text-align: center; padding: 40px; }
+        .asset-card:hover { transform: translateY(-2px); }
+        .asset-card.dragging { opacity: 0.5; cursor: grabbing; }
+        .asset-card.drag-over { border-color: var(--highlight); background: rgba(0,255,133,0.05); }
+
+        .asset-header {
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .asset-info { display: flex; align-items: center; gap: 12px; }
+        .asset-logo {
+            width: 40px; height: 40px; object-fit: contain; border-radius: 50%;
+        }
+        .asset-name { font-weight: 700; font-size: 16px; }
+        .asset-symbol { font-size: 11px; color: var(--text-sub); margin-top: 1px; }
+
+        .asset-price {
+            font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums;
+        }
+        .asset-change {
+            font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 4px;
+        }
+        .asset-change.positive { color: var(--highlight); }
+        .asset-change.negative { color: var(--highlight-red); }
+        .asset-change.neutral { color: var(--text-sub); }
+
+        .message {
+            text-align: center; padding: 30px; color: var(--text-sub);
+            font-size: 16px; grid-column: 1 / -1;
+        }
+
+        #settings-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 100;
+            justify-content: center; align-items: center;
+        }
+        body.modal-open #ticker-grid { visibility: hidden; }
+        .modal-content {
+            background: var(--bg-color); padding: 24px; border-radius: 12px;
+            width: 400px; border: 1px solid #444;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            text-align: center;
+            max-height: 85vh; overflow-y: auto;
+        }
+        .modal-title { margin-top: 0; font-size: 18px; margin-bottom: 20px; }
+        .label-text {
+            text-align: left; margin-bottom: 8px; font-size: 12px; color:#aaa;
+            display: block; margin-top: 15px;
+        }
+        .asset-search-wrap { position: relative; margin-bottom: 12px; }
+        .asset-search-wrap input {
+            width: 100%; padding: 10px 12px; background: var(--card-bg); color: #fff;
+            border: 1px solid #555; border-radius: 6px; font-size: 14px; box-sizing: border-box;
+        }
+        .asset-search-wrap input::placeholder { color: #888; }
+        .asset-search-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+            background: var(--card-bg); border: 1px solid #555; border-radius: 6px;
+            max-height: 200px; overflow-y: auto; z-index: 10; display: none;
+        }
+        .asset-search-dropdown.show { display: block; }
+        .asset-search-item {
+            padding: 8px 12px; font-size: 13px; cursor: pointer;
+            display: flex; justify-content: space-between; border-bottom: 1px solid #333;
+        }
+        .asset-search-item:last-child { border-bottom: none; }
+        .asset-search-item:hover { background: #333; }
+        .asset-search-item .sym { color: var(--text-sub); font-size: 11px; }
+        .selected-assets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; min-height: 24px; }
+        .asset-chip {
+            display: inline-flex; align-items: center; gap: 6px; background: #333;
+            padding: 4px 10px; border-radius: 6px; font-size: 12px;
+        }
+        .asset-chip button { background: none; border: none; color: var(--text-sub); cursor: pointer; padding: 0; font-size: 14px; line-height: 1; }
+        .asset-chip button:hover { color: var(--highlight-red); }
+
+        select {
+            width: 100%; padding: 10px; margin-bottom: 5px;
+            background: var(--card-bg); color: #fff; border: 1px solid #555;
+            border-radius: 6px; font-size: 14px; outline: none;
+        }
+        select:focus { border-color: var(--highlight); }
+        .modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        button.primary {
+            background: var(--highlight); color: #000; border: none; padding: 8px 16px;
+            border-radius: 6px; font-weight: 700; cursor: pointer;
+        }
+        button.secondary {
+            background: transparent; color: var(--text-sub); border: 1px solid #555;
+            padding: 8px 16px; border-radius: 6px; cursor: pointer;
+        }
+        button:hover { opacity: 0.9; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div id="attr-author" class="widget-author">Widget by <a href="https://github.com/KirjoZzZ" target="_blank" rel="noopener">KirjoZzZ</a></div>
+
+<div id="widget-container">
+    <header>
+        <div class="header-left">
+            <h2>Crypto Market Live</h2>
+            <div id="current-date" class="date-display">Loading...</div>
+            <div class="live-indicator"><span class="dot"></span><span id="live-text"> LIVE</span></div>
+        </div>
+        <div class="header-right">
+            <div class="view-toggle">
+                <button id="view-cards" class="active" onclick="setView('cards')" title="Card view">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
+                </button>
+                <button id="view-compact" onclick="setView('compact')" title="Compact list">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="attribution-container">
+                <span id="attr-data">Data: </span>
+                <a href="https://www.coingecko.com" target="_blank" rel="noopener noreferrer" title="CoinGecko">CoinGecko</a>
+                <span>, </span>
+                <a href="https://www.cryptocompare.com" target="_blank" rel="noopener noreferrer" title="CryptoCompare">CryptoCompare</a>
+                <span>, </span>
+                <a href="https://www.tradingview.com" target="_blank" rel="noopener noreferrer" title="TradingView">TradingView</a>
+            </div>
+            <button class="settings-btn" onclick="openSettings()" title="Settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <div id="ticker-grid">
+        <div class="message">Loading prices...</div>
+    </div>
+</div>
+
+<div id="settings-modal">
+    <div class="modal-content">
+        <h3 class="modal-title">Widget Settings</h3>
+        <label class="label-text">Add Asset (search any CoinGecko cryptocurrency)</label>
+        <div class="asset-search-wrap">
+            <input type="text" id="asset-search" placeholder="Search by name or symbol..." autocomplete="off">
+            <div id="asset-dropdown" class="asset-search-dropdown"></div>
+        </div>
+        <label class="label-text">Selected Assets</label>
+        <div id="selected-assets" class="selected-assets"></div>
+        <label for="lang-select" id="label-language" class="label-text">Language</label>
+        <select id="lang-select" onchange="setLang(this.value)">
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Français</option>
+            <option value="es">Español</option>
+            <option value="ja">日本語</option>
+            <option value="zh">中文</option>
+            <option value="ar">العربية</option>
+            <option value="pt">Português</option>
+            <option value="hi">हिन्दी</option>
+        </select>
+        <label for="fiat-select" class="label-text">Display Currency</label>
+        <select id="fiat-select">
+            <option value="usd">USD ($)</option>
+            <option value="eur">EUR (€)</option>
+            <option value="gbp">GBP (£)</option>
+            <option value="jpy">JPY (¥)</option>
+            <option value="chf">CHF (Fr)</option>
+            <option value="cad">CAD ($)</option>
+            <option value="aud">AUD ($)</option>
+            <option value="rub">RUB (₽)</option>
+            <option value="cny">CNY (¥)</option>
+            <option value="krw">KRW (₩)</option>
+            <option value="inr">INR (₹)</option>
+            <option value="brl">BRL (R$)</option>
+            <option value="mxn">MXN ($)</option>
+            <option value="pln">PLN (zł)</option>
+            <option value="try">TRY (₺)</option>
+            <option value="uah">UAH (₴)</option>
+            <option value="btc">BTC (₿)</option>
+            <option value="eth">ETH (Ξ)</option>
+        </select>
+        <div class="modal-actions">
+            <button class="secondary" onclick="closeSettings()">Cancel</button>
+            <button class="primary" onclick="saveSettings()">Save</button>
+        </div>
+    </div>
+</div>
+
+<div id="chart-modal">
+    <div class="chart-modal-content">
+        <div class="chart-modal-header">
+            <button class="chart-modal-close" onclick="closeChartModal()" title="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="chart-widget-wrap" id="chart-widget-wrap">
+            <div id="chart-loading" class="chart-loading">Loading chart...</div>
+            <div id="chart-tradingview-container" style="display:none; height:100%; width:100%"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const COINGECKO_API = "https://api.coingecko.com/api/v3";
+    const REFRESH_RATE = 60000;
+    const CORS_PROXIES = [
+        "https://api.allorigins.win/raw?url=",
+        "https://corsproxy.io/?url="
+    ];
+    async function apiFetch(url, { allowNonOk = true } = {}) {
+        try {
+            const r = await fetch(url);
+            if (r.ok || allowNonOk) return r;
+        } catch (e) { /* CORS or network */ }
+        for (const p of CORS_PROXIES) {
+            try {
+                const r = await fetch(p + encodeURIComponent(url));
+                if (r.ok || allowNonOk) return r;
+            } catch (e) { /* try next */ }
+        }
+        throw new Error("Failed to fetch");
+    }
+
+    const LANG = {
+        en: { title: "Crypto Market Live", live: "LIVE", loading: "Loading...", loadingPrices: "Loading prices...", viewCards: "Card view", viewCompact: "Compact list", data: "Data", settings: "Settings",
+            settingsTitle: "Widget Settings", addAsset: "Add Asset (search any CoinGecko cryptocurrency)", searchPlaceholder: "Search by name or symbol...", selectedAssets: "Selected Assets", language: "Language", currency: "Display Currency", noMatches: "No matches",
+            cancel: "Cancel", save: "Save", selectAsset: "Please select at least one asset in Settings.", noData: "No market data for selected assets. Try popular coins like Bitcoin, Ethereum.",
+            loadError: "Unable to load prices.", corsHint: " Open via http:// or check network.", networkHint: " Check network or try again later.", retry: "Retry", expandChart: "Expand chart", switchExchange: "Switch exchange", close: "Close", loadingChart: "Loading chart...", widgetBy: "Widget by KirjoZzZ" },
+        ru: { title: "Крипторынок", live: "ОНЛАЙН", loading: "Загрузка...", loadingPrices: "Загрузка цен...", viewCards: "Карточки", viewCompact: "Список", data: "Данные", settings: "Настройки",
+            settingsTitle: "Настройки виджета", addAsset: "Добавить монету (поиск по CoinGecko)", searchPlaceholder: "Поиск по названию или тикеру...", selectedAssets: "Выбранные монеты", language: "Язык", currency: "Валюта",
+            cancel: "Отмена", save: "Сохранить", selectAsset: "Выберите хотя бы одну монету в настройках.", noData: "Нет данных. Попробуйте Bitcoin, Ethereum и др.",
+            loadError: "Не удалось загрузить цены.", corsHint: " Откройте через http:// или проверьте сеть.", networkHint: " Проверьте сеть или повторите позже.", retry: "Повторить", expandChart: "Открыть график", switchExchange: "Сменить биржу", close: "Закрыть", loadingChart: "Загрузка графика...", widgetBy: "Виджет сделан KirjoZzZ" },
+        de: { title: "Kryptomarkt", live: "LIVE", loading: "Laden...", loadingPrices: "Preise werden geladen...", viewCards: "Karten", viewCompact: "Liste", data: "Daten", settings: "Einstellungen",
+            settingsTitle: "Widget-Einstellungen", addAsset: "Kryptowährung hinzufügen (CoinGecko-Suche)", searchPlaceholder: "Nach Name oder Symbol suchen...", selectedAssets: "Ausgewählte Coins", language: "Sprache", currency: "Währung", noMatches: "Keine Treffer",
+            cancel: "Abbrechen", save: "Speichern", selectAsset: "Wählen Sie mindestens einen Coin in den Einstellungen.", noData: "Keine Marktdaten. Versuchen Sie Bitcoin, Ethereum usw.",
+            loadError: "Preise konnten nicht geladen werden.", corsHint: " Über http:// öffnen oder Netzwerk prüfen.", networkHint: " Netzwerk prüfen oder später erneut versuchen.", retry: "Erneut", expandChart: "Chart erweitern", switchExchange: "Börse wechseln", close: "Schließen", loadingChart: "Chart wird geladen..." },
+        fr: { title: "Marché crypto", live: "EN DIRECT", loading: "Chargement...", loadingPrices: "Chargement des prix...", viewCards: "Cartes", viewCompact: "Liste", data: "Données", settings: "Paramètres",
+            settingsTitle: "Paramètres du widget", addAsset: "Ajouter une crypto (recherche CoinGecko)", searchPlaceholder: "Rechercher par nom ou symbole...", selectedAssets: "Actifs sélectionnés", language: "Langue", currency: "Devise",
+            cancel: "Annuler", save: "Enregistrer", selectAsset: "Sélectionnez au moins un actif dans les paramètres.", noData: "Aucune donnée. Essayez Bitcoin, Ethereum, etc.",
+            loadError: "Impossible de charger les prix.", corsHint: " Ouvrir via http:// ou vérifier le réseau.", networkHint: " Vérifiez le réseau ou réessayez plus tard.", retry: "Réessayer", expandChart: "Agrandir le graphique", switchExchange: "Changer d'exchange", close: "Fermer", loadingChart: "Chargement du graphique..." },
+        es: { title: "Mercado crypto", live: "EN VIVO", loading: "Cargando...", loadingPrices: "Cargando precios...", viewCards: "Tarjetas", viewCompact: "Lista", data: "Datos", settings: "Ajustes",
+            settingsTitle: "Ajustes del widget", addAsset: "Añadir cripto (buscar en CoinGecko)", searchPlaceholder: "Buscar por nombre o símbolo...", selectedAssets: "Activos seleccionados", language: "Idioma", currency: "Moneda", noMatches: "Sin resultados",
+            cancel: "Cancelar", save: "Guardar", selectAsset: "Seleccione al menos un activo en Ajustes.", noData: "Sin datos. Pruebe Bitcoin, Ethereum, etc.",
+            loadError: "No se pudieron cargar los precios.", corsHint: " Abrir vía http:// o comprobar la red.", networkHint: " Compruebe la red o intente más tarde.", retry: "Reintentar", expandChart: "Ampliar gráfico", switchExchange: "Cambiar exchange", close: "Cerrar", loadingChart: "Cargando gráfico...", widgetBy: "Widget por KirjoZzZ" },
+        ja: { title: "暗号資産相場", live: "ライブ", loading: "読み込み中...", loadingPrices: "価格を読み込み中...", viewCards: "カード", viewCompact: "リスト", data: "データ", settings: "設定",
+            settingsTitle: "ウィジェット設定", addAsset: "暗号資産を追加（CoinGecko検索）", searchPlaceholder: "名前またはシンボルで検索...", selectedAssets: "選択した資産", language: "言語", currency: "通貨",
+            cancel: "キャンセル", save: "保存", selectAsset: "設定で少なくとも1つの資産を選択してください。", noData: "データがありません。Bitcoin、Ethereumなどを試してください。",
+            loadError: "価格を読み込めませんでした。", corsHint: " http://で開くかネットワークを確認してください。", retry: "再試行", expandChart: "チャートを拡大", switchExchange: "取引所を切り替え", close: "閉じる", loadingChart: "チャート読み込み中..." },
+        zh: { title: "加密货币行情", live: "实时", loading: "加载中...", loadingPrices: "加载价格...", viewCards: "卡片", viewCompact: "列表", data: "数据", settings: "设置",
+            settingsTitle: "小组件设置", addAsset: "添加代币（CoinGecko 搜索）", searchPlaceholder: "按名称或代码搜索...", selectedAssets: "已选资产", language: "语言", currency: "货币", noMatches: "无匹配",
+            cancel: "取消", save: "保存", selectAsset: "请在设置中选择至少一种资产。", noData: "暂无数据，请尝试 Bitcoin、Ethereum 等。",
+            loadError: "无法加载价格。", corsHint: " 请通过 http:// 打开或检查网络。", networkHint: " 请检查网络或稍后再试。", retry: "重试", expandChart: "展开图表", switchExchange: "切换交易所", close: "关闭", loadingChart: "加载图表中...", widgetBy: "Widget by KirjoZzZ" },
+        ar: { title: "سوق العملات المشفرة", live: "مباشر", loading: "جاري التحميل...", loadingPrices: "جاري تحميل الأسعار...", viewCards: "بطاقات", viewCompact: "قائمة", data: "بيانات", settings: "الإعدادات",
+            settingsTitle: "إعدادات الودجت", addAsset: "إضافة عملة (بحث CoinGecko)", searchPlaceholder: "البحث بالاسم أو الرمز...", selectedAssets: "الأصول المحددة", language: "اللغة", currency: "العملة",
+            cancel: "إلغاء", save: "حفظ", selectAsset: "اختر رمزاً واحداً على الأقل في الإعدادات.", noData: "لا توجد بيانات. جرب Bitcoin أو Ethereum.",
+            loadError: "تعذر تحميل الأسعار.", corsHint: " افتح عبر http:// أو تحقق من الشبكة.", retry: "إعادة", expandChart: "توسيع الرسم", switchExchange: "تبديل البورصة", close: "إغلاق", loadingChart: "جاري تحميل الرسم...", widgetBy: "Widget by KirjoZzZ" },
+        pt: { title: "Mercado cripto", live: "AO VIVO", loading: "Carregando...", loadingPrices: "Carregando preços...", viewCards: "Cartões", viewCompact: "Lista", data: "Dados", settings: "Configurações",
+            settingsTitle: "Configurações do widget", addAsset: "Adicionar cripto (busca CoinGecko)", searchPlaceholder: "Buscar por nome ou símbolo...", selectedAssets: "Ativos selecionados", language: "Idioma", currency: "Moeda", noMatches: "Sem resultados",
+            cancel: "Cancelar", save: "Salvar", selectAsset: "Selecione pelo menos um ativo nas configurações.", noData: "Sem dados. Tente Bitcoin, Ethereum, etc.",
+            loadError: "Não foi possível carregar os preços.", corsHint: " Abra via http:// ou verifique a rede.", retry: "Tentar novamente", expandChart: "Expandir gráfico", switchExchange: "Trocar exchange", close: "Fechar", loadingChart: "Carregando gráfico...", widgetBy: "Widget por KirjoZzZ" },
+        hi: { title: "क्रिप्टो बाजार", live: "लाइव", loading: "लोड हो रहा है...", loadingPrices: "कीमतें लोड हो रही हैं...", viewCards: "कार्ड", viewCompact: "सूची", data: "डेटा", settings: "सेटिंग्स",
+            settingsTitle: "विजेट सेटिंग्स", addAsset: "क्रिप्टो जोड़ें (CoinGecko खोज)", searchPlaceholder: "नाम या प्रतीक से खोजें...", selectedAssets: "चयनित संपत्ति", language: "भाषा", currency: "मुद्रा",
+            cancel: "रद्द करें", save: "सहेजें", selectAsset: "सेटिंग्स में कम से कम एक संपत्ति चुनें।", noData: "कोई डेटा नहीं। Bitcoin, Ethereum आज़माएं।",
+            loadError: "कीमतें लोड नहीं हो सकीं।", corsHint: " http:// से खोलें या नेटवर्क जांचें।", retry: "पुनः प्रयास", expandChart: "चार्ट विस्तृत करें", switchExchange: "एक्सचेंज बदलें", close: "बंद करें", loadingChart: "चार्ट लोड हो रहा है..." }
+    };
+    const LANG_MAP = { ru: "ru", de: "de", fr: "fr", es: "es", ja: "ja", zh: "zh", ar: "ar", pt: "pt", hi: "hi" };
+    const DATE_LOCALE = { en: "en-US", ru: "ru-RU", de: "de-DE", fr: "fr-FR", es: "es-ES", ja: "ja-JP", zh: "zh-CN", ar: "ar-SA", pt: "pt-BR", hi: "hi-IN" };
+
+    const STORAGE_PREFIX = "crypto_market_live_";
+    const STORAGE_KEYS = {
+        lang: STORAGE_PREFIX + "lang",
+        activeAssets: STORAGE_PREFIX + "active_assets",
+        fiat: STORAGE_PREFIX + "fiat",
+        view: STORAGE_PREFIX + "view"
+    };
+    function getStoredValueWithFallback(newKey, oldKey) {
+        const newVal = localStorage.getItem(newKey);
+        if (newVal !== null) return newVal;
+        const oldVal = localStorage.getItem(oldKey);
+        return oldVal !== null ? oldVal : null;
+    }
+
+    let lang = getStoredValueWithFallback(STORAGE_KEYS.lang, "exchange_lang") || LANG_MAP[navigator.language?.split("-")[0]] || "en";
+    function t(k) { return LANG[lang]?.[k] ?? LANG.en[k] ?? k; }
+    function setLang(code) { lang = code; localStorage.setItem(STORAGE_KEYS.lang, lang); applyLang(); fetchPrices(); }
+    function applyLang() {
+        document.title = t("title");
+        const h2 = document.querySelector("#widget-container h2"); if (h2) h2.textContent = t("title");
+        const liveText = document.getElementById("live-text"); if (liveText) liveText.textContent = " " + t("live");
+        const dateEl = document.getElementById("current-date"); if (dateEl && dateEl.textContent === "Loading...") dateEl.textContent = t("loading");
+        document.getElementById("view-cards")?.setAttribute("title", t("viewCards"));
+        document.getElementById("view-compact")?.setAttribute("title", t("viewCompact"));
+        document.querySelector(".settings-btn")?.setAttribute("title", t("settings"));
+        document.querySelector(".modal-title")?.replaceChildren(t("settingsTitle"));
+        const labels = document.querySelectorAll(".label-text"); if (labels.length >= 4) { labels[0].textContent = t("addAsset"); labels[1].textContent = t("selectedAssets"); labels[3].textContent = t("currency"); }
+        const langLbl = document.getElementById("label-language"); if (langLbl) langLbl.textContent = t("language");
+        document.getElementById("asset-search")?.setAttribute("placeholder", t("searchPlaceholder"));
+        const cancelBtn = document.querySelector(".modal-actions .secondary"); if (cancelBtn) cancelBtn.textContent = t("cancel");
+        const saveBtn = document.querySelector(".modal-actions .primary"); if (saveBtn) saveBtn.textContent = t("save");
+        document.querySelector(".chart-modal-close")?.setAttribute("title", t("close"));
+        const chartLoading = document.querySelector(".chart-loading"); if (chartLoading) chartLoading.textContent = t("loadingChart");
+        const attrData = document.getElementById("attr-data"); if (attrData) attrData.textContent = t("data") + ": ";
+        const attrAuthor = document.getElementById("attr-author"); if (attrAuthor) attrAuthor.innerHTML = t("widgetBy").replace("KirjoZzZ", '<a href="https://github.com/KirjoZzZ" target="_blank" rel="noopener noreferrer">KirjoZzZ</a>');
+        const langSel = document.getElementById("lang-select"); if (langSel) langSel.value = lang;
+    }
+
+    const storedActiveAssets = getStoredValueWithFallback(STORAGE_KEYS.activeAssets, "exchange_active_assets");
+    let activeAssets = [];
+    if (storedActiveAssets) {
+        try {
+            activeAssets = JSON.parse(storedActiveAssets) || [];
+        } catch (e) {
+            activeAssets = [];
+        }
+    }
+    if (!Array.isArray(activeAssets) || activeAssets.length === 0) {
+        activeAssets = ["bitcoin", "ethereum", "binancecoin", "solana", "ripple"];
+    }
+    let fiatCurrency = getStoredValueWithFallback(STORAGE_KEYS.fiat, "exchange_fiat") || "usd";
+    let viewMode = getStoredValueWithFallback(STORAGE_KEYS.view, "exchange_view") || "cards";
+    let refreshIntervalId = null;
+    let allCoins = [];
+    const COINS_CACHE_KEY = "coingecko_coins_list";
+    const COINS_CACHE_HOURS = 24;
+
+    function setView(mode) {
+        viewMode = mode;
+        localStorage.setItem(STORAGE_KEYS.view, viewMode);
+        document.getElementById("view-cards").classList.toggle("active", mode === "cards");
+        document.getElementById("view-compact").classList.toggle("active", mode === "compact");
+        document.getElementById("ticker-grid").classList.toggle("compact", mode === "compact");
+    }
+
+    async function openSettings() {
+        if (refreshIntervalId) { clearInterval(refreshIntervalId); refreshIntervalId = null; }
+        document.body.classList.add("modal-open");
+        document.getElementById("fiat-select").value = fiatCurrency;
+        document.getElementById("asset-search").value = "";
+        document.getElementById("asset-dropdown").classList.remove("show");
+        document.getElementById("asset-dropdown").innerHTML = "";
+        await loadCoinsList();
+        renderSelectedAssets();
+        applyLang();
+        document.getElementById("settings-modal").style.display = "flex";
+    }
+
+    function closeSettings() {
+        document.getElementById("settings-modal").style.display = "none";
+        document.body.classList.remove("modal-open");
+        if (!refreshIntervalId) refreshIntervalId = setInterval(fetchPrices, REFRESH_RATE);
+    }
+
+    function saveSettings() {
+        fiatCurrency = document.getElementById("fiat-select").value;
+        localStorage.setItem(STORAGE_KEYS.fiat, fiatCurrency);
+        activeAssets = [...document.querySelectorAll(".asset-chip")].map(c => c.dataset.coinId);
+        localStorage.setItem(STORAGE_KEYS.activeAssets, JSON.stringify(activeAssets));
+        closeSettings();
+        fetchPrices();
+    }
+
+    async function loadCoinsList() {
+        try {
+            const cached = localStorage.getItem(COINS_CACHE_KEY);
+            if (cached) {
+                const { data, ts } = JSON.parse(cached);
+                if (Date.now() - ts < COINS_CACHE_HOURS * 3600 * 1000) {
+                    allCoins = data;
+                    return;
+                }
+            }
+            const res = await apiFetch(`${COINGECKO_API}/coins/list?include_platform=false`);
+            allCoins = await res.json();
+            localStorage.setItem(COINS_CACHE_KEY, JSON.stringify({ data: allCoins, ts: Date.now() }));
+        } catch (e) {
+            console.error("Failed to load coins list:", e);
+            allCoins = [];
+        }
+    }
+
+    function searchCoins(q) {
+        if (!q || q.length < 2) return [];
+        const low = q.toLowerCase();
+        return allCoins.filter(c =>
+            c.name.toLowerCase().includes(low) || c.symbol.toLowerCase().includes(low)
+        ).slice(0, 25);
+    }
+
+    function renderSelectedAssets() {
+        const el = document.getElementById("selected-assets");
+        el.innerHTML = "";
+        for (const id of activeAssets) {
+            const coin = allCoins.find(c => c.id === id) || { id, symbol: id, name: id };
+            const chip = document.createElement("span");
+            chip.className = "asset-chip";
+            chip.dataset.coinId = coin.id;
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = "×";
+            btn.onclick = () => removeAsset(coin.id);
+            chip.appendChild(document.createTextNode(coin.name + " "));
+            const sym = document.createElement("span");
+            sym.className = "sym";
+            sym.textContent = "(" + coin.symbol.toUpperCase() + ")";
+            chip.appendChild(sym);
+            chip.appendChild(document.createTextNode(" "));
+            chip.appendChild(btn);
+            el.appendChild(chip);
+        }
+    }
+
+    function addAsset(id, name, symbol) {
+        if (activeAssets.includes(id)) return;
+        activeAssets.push(id);
+        renderSelectedAssets();
+        document.getElementById("asset-search").value = "";
+        document.getElementById("asset-dropdown").classList.remove("show");
+        document.getElementById("asset-dropdown").innerHTML = "";
+    }
+
+    function removeAsset(id) {
+        activeAssets = activeAssets.filter(x => x !== id);
+        renderSelectedAssets();
+    }
+
+    document.getElementById("asset-search").addEventListener("input", function() {
+        const q = this.value.trim();
+        const dropdown = document.getElementById("asset-dropdown");
+        if (!q || q.length < 2) { dropdown.classList.remove("show"); dropdown.innerHTML = ""; return; }
+        const results = searchCoins(q);
+        const selected = new Set(activeAssets);
+        const filtered = results.filter(c => !selected.has(c.id));
+        const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+        dropdown.innerHTML = filtered.slice(0, 20).map(c =>
+            `<div class="asset-search-item" data-id="${esc(c.id)}" data-name="${esc(c.name)}" data-symbol="${esc(c.symbol)}">
+                <span>${esc(c.name)}</span><span class="sym">${esc(c.symbol).toUpperCase()}</span>
+            </div>`
+        ).join("") || '<div class="asset-search-item" style="color:#888">' + t("noMatches") + '</div>';
+        dropdown.classList.add("show");
+        dropdown.querySelectorAll(".asset-search-item[data-id]").forEach(item => {
+            item.onclick = () => addAsset(item.dataset.id, item.dataset.name, item.dataset.symbol);
+        });
+    });
+    document.getElementById("asset-search").addEventListener("blur", function() {
+        setTimeout(() => document.getElementById("asset-dropdown").classList.remove("show"), 150);
+    });
+
+    function formatPrice(n, cur) {
+        const sym = { usd: "$", eur: "€", gbp: "£", jpy: "¥", chf: "Fr ", cad: "C$", aud: "A$",
+            rub: "₽", cny: "¥", krw: "₩", inr: "₹", brl: "R$", mxn: "$", pln: "zł ", try: "₺", uah: "₴",
+            btc: "₿", eth: "Ξ" }[cur] || cur.toUpperCase() + " ";
+        if (cur === "btc" || cur === "eth") return `${sym}${n.toFixed(8)}`;
+        if (n >= 1e9) return `${sym}${(n / 1e9).toFixed(2)}B`;
+        if (n >= 1e6) return `${sym}${(n / 1e6).toFixed(2)}M`;
+        if (n >= 1e3) return `${sym}${(n / 1e3).toFixed(2)}K`;
+        if (n >= 1) return `${sym}${n.toFixed(2)}`;
+        return `${sym}${n.toFixed(6)}`;
+    }
+
+    async function fetchPrices() {
+        const modalOpen = document.getElementById("settings-modal").style.display === "flex";
+        if (modalOpen || document.hidden) return;
+        const grid = document.getElementById("ticker-grid");
+        if (activeAssets.length === 0) {
+            grid.innerHTML = '<div class="message">' + t("selectAsset") + '</div>';
+            return;
+        }
+
+        const supported = ["usd","eur","gbp","jpy","chf","cad","aud","rub","cny","krw","inr","brl","mxn","pln","try","uah","btc","eth"];
+        const vs = supported.includes(fiatCurrency) ? fiatCurrency : "usd";
+
+        try {
+            const url = `${COINGECKO_API}/coins/markets?vs_currency=${vs}&ids=${activeAssets.join(",")}&per_page=50&order=market_cap_desc`;
+            let res;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                res = await apiFetch(url);
+                if (res.status === 429) {
+                    const delay = [5000, 10000, 15000][attempt] || 15000;
+                    await new Promise(r => setTimeout(r, delay));
+                } else break;
+            }
+            if (!res.ok) throw new Error(`API ${res.status}`);
+            const data = await res.json();
+            if (!Array.isArray(data)) {
+                throw new Error(data?.status?.message || "API returned invalid data");
+            }
+            if (data.length === 0) {
+                grid.innerHTML = '<div class="message">' + t("noData") + '</div>';
+                return;
+            }
+
+            document.getElementById("current-date").innerText = new Date().toLocaleDateString(DATE_LOCALE[lang] || "en-US", {
+                weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
+            });
+
+            const order = activeAssets.reduce((o, id, i) => { o[id] = i; return o; }, {});
+            const sorted = [...data].sort((a, b) => (order[a.id] ?? 99) - (order[b.id] ?? 99));
+            const coinMap = Object.fromEntries(sorted.map(c => [c.id, c]));
+
+            const existingCards = grid.querySelectorAll(".asset-card[data-coin-id]");
+            const needRebuild = existingCards.length !== sorted.length ||
+                [...existingCards].some(c => !coinMap[c.dataset.coinId]);
+            if (needRebuild) {
+                grid.innerHTML = "";
+                for (const coin of sorted) {
+                    grid.appendChild(buildCard(coin, vs));
+                }
+                loadAllCharts(grid.querySelectorAll(".asset-card[data-coin-id]"), coinMap);
+            } else {
+                for (const card of existingCards) {
+                    const coin = coinMap[card.dataset.coinId];
+                    if (!coin) continue;
+                    const price = coin.current_price ?? 0;
+                    const change = coin.price_change_percentage_24h;
+                    const changeClass = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
+                    const changeText = change != null ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—";
+                    card.querySelector(".asset-price").textContent = formatPrice(price, vs);
+                    const changeEl = card.querySelector(".asset-change");
+                    changeEl.textContent = changeText + " 24h";
+                    changeEl.className = "asset-change " + changeClass;
+                }
+                loadAllCharts(existingCards, coinMap);
+            }
+
+        } catch (err) {
+            console.error("fetchPrices error:", err);
+            const isCors = err.message?.includes("Failed to fetch") || err.name === "TypeError";
+            const hint = isCors ? t("corsHint") : t("networkHint");
+            grid.innerHTML = '<div class="message">' + t("loadError") + hint + ' <button class="primary" onclick="fetchPrices()" style="margin-top:10px">' + t("retry") + '</button></div>';
+        }
+    }
+
+    function buildCard(coin, currencyKey) {
+        const price = coin.current_price ?? 0;
+        const change = coin.price_change_percentage_24h;
+        const changeClass = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
+        const changeText = change != null ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—";
+        let imgUrl = (coin.image || "").replace("/large/", "/small/");
+        if (!/^https?:\/\//.test(imgUrl)) {
+            imgUrl = "https://assets.coingecko.com/coins/images/1/small/bitcoin.png";
+        }
+        const cur = currencyKey || "usd";
+        const card = document.createElement("div");
+        card.className = "asset-card";
+        if (coin.id != null) card.dataset.coinId = String(coin.id);
+        card.draggable = true;
+
+        const main = document.createElement("div");
+        main.className = "asset-card-main";
+
+        const header = document.createElement("div");
+        header.className = "asset-header";
+
+        const assetInfo = document.createElement("div");
+        assetInfo.className = "asset-info";
+
+        const logo = document.createElement("img");
+        logo.className = "asset-logo";
+        logo.src = imgUrl;
+        logo.alt = String(coin.symbol || "");
+        logo.onerror = function() {
+            this.onerror = null;
+            this.src = "https://assets.coingecko.com/coins/images/1/small/bitcoin.png";
+        };
+
+        const nameSymbolWrap = document.createElement("div");
+        const nameDiv = document.createElement("div");
+        nameDiv.className = "asset-name";
+        nameDiv.textContent = coin.name != null ? String(coin.name) : "";
+        const symbolDiv = document.createElement("div");
+        symbolDiv.className = "asset-symbol";
+        symbolDiv.textContent = (coin.symbol || "").toString().toUpperCase();
+
+        nameSymbolWrap.appendChild(nameDiv);
+        nameSymbolWrap.appendChild(symbolDiv);
+        assetInfo.appendChild(logo);
+        assetInfo.appendChild(nameSymbolWrap);
+        header.appendChild(assetInfo);
+
+        const priceDiv = document.createElement("div");
+        priceDiv.className = "asset-price";
+        priceDiv.textContent = formatPrice(price, cur);
+
+        const changeDiv = document.createElement("div");
+        changeDiv.className = "asset-change " + changeClass;
+        changeDiv.textContent = changeText + " 24h";
+
+        main.appendChild(header);
+        main.appendChild(priceDiv);
+        main.appendChild(changeDiv);
+
+        const chartWrap = document.createElement("div");
+        chartWrap.className = "asset-chart-wrap";
+
+        const chartExpandRow = document.createElement("div");
+        chartExpandRow.className = "chart-expand-row";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "chart-expand-btn";
+        button.draggable = false;
+        if (coin.id != null) button.dataset.coinId = String(coin.id);
+        if (coin.name != null) button.dataset.coinName = String(coin.name);
+        button.dataset.coinSymbol = (coin.symbol || "").toString().toUpperCase();
+        button.title = t("expandChart");
+        button.addEventListener("click", function() { openChartModal(button); });
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("fill", "none");
+        svg.setAttribute("stroke", "currentColor");
+        svg.setAttribute("stroke-width", "2");
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("d", "M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3");
+        svg.appendChild(path);
+        button.appendChild(svg);
+        chartExpandRow.appendChild(button);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 90;
+        canvas.height = 60;
+
+        const chartLabel = document.createElement("span");
+        chartLabel.className = "chart-label";
+        chartLabel.textContent = "24h";
+
+        chartWrap.appendChild(chartExpandRow);
+        chartWrap.appendChild(canvas);
+        chartWrap.appendChild(chartLabel);
+
+        card.appendChild(main);
+        card.appendChild(chartWrap);
+        return card;
+    }
+
+    const CRYPTOCOMPARE_API = "https://min-api.cryptocompare.com/data/v2/histohour";
+    let chartLoadBatchId = 0;
+
+    async function loadChart(card, coin) {
+        if (!card || !document.contains(card)) return;
+        const sym = (coin.symbol || coin.id || "").toUpperCase();
+        if (!sym || sym === "USDT" || sym === "USDC") return;
+        const supported = ["usd","eur","gbp","jpy","chf","cad","aud","rub","cny","krw","inr","brl","mxn","pln","try","uah","btc","eth"];
+        const vs = supported.includes(fiatCurrency) ? fiatCurrency : "usd";
+        const tsym = vs.toUpperCase();
+        try {
+            const res = await apiFetch(`${CRYPTOCOMPARE_API}?fsym=${sym}&tsym=${tsym}&limit=24`);
+            const json = await res.json();
+            const arr = json?.Data?.Data;
+            if (!Array.isArray(arr) || arr.length < 2) return;
+            const points = arr.map(d => [d.time * 1000, d.close]);
+            const canvas = card.querySelector(".asset-chart-wrap canvas");
+            if (canvas) drawLineChart(canvas, points);
+        } catch (e) { /* ignore */ }
+    }
+
+    function loadAllCharts(cards, coinMap) {
+        if (!cards || !coinMap) return;
+        chartLoadBatchId++;
+        const batchId = chartLoadBatchId;
+        for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const coin = coinMap[card.dataset.coinId];
+            if (!coin) continue;
+            const delay = i * 1200;
+            setTimeout(() => {
+                if (batchId !== chartLoadBatchId) return;
+                if (!card || !document.contains(card)) return;
+                loadChart(card, coin);
+            }, delay);
+        }
+    }
+
+    function drawLineChart(canvas, points) {
+        if (points.length < 2) return;
+        const ctx = canvas.getContext("2d");
+        const w = canvas.width, h = canvas.height;
+        const pad = 4;
+        const vals = points.map(p => p[1]);
+        const min = Math.min(...vals);
+        const max = Math.max(...vals);
+        const range = max - min || 1;
+        const t0 = points[0][0], t1 = points[points.length - 1][0] || 1;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.beginPath();
+        points.forEach((p, i) => {
+            const x = pad + ((p[0] - t0) / (t1 - t0)) * (w - pad * 2);
+            const y = h - pad - ((p[1] - min) / range) * (h - pad * 2);
+            ctx[i ? "lineTo" : "moveTo"](x, y);
+        });
+        ctx.strokeStyle = vals[vals.length - 1] >= vals[0] ? "#00ff85" : "#ff4444";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    const COINGECKO_TO_BINANCE = { binancecoin: "BNB", ripple: "XRP", polkadot: "DOT", "matic-network": "MATIC", "avalanche-2": "AVAX", "shiba-inu": "SHIB", tron: "TRX", dai: "DAI", litecoin: "LTC", "bitcoin-cash": "BCH", cosmos: "ATOM", uniswap: "UNI", chainlink: "LINK", stellar: "XLM", monero: "XMR", "ethereum-classic": "ETC", filecoin: "FIL", "internet-computer": "ICP", aptos: "APT", arbitrum: "ARB", optimism: "OP", near: "NEAR", sui: "SUI", "sei-network": "SEI", "injective-protocol": "INJ" };
+    const CURRENCY_EXCHANGES = [
+        { cur: "usd", exchange: "BINANCE", quote: "USDT" },
+        { cur: "eur", exchange: "BINANCE", quote: "EUR" },
+        { cur: "gbp", exchange: "BINANCE", quote: "GBP" },
+        { cur: "jpy", exchange: "BITFLYER", quote: "JPY" },
+        { cur: "chf", exchange: "BINANCE", quote: "USDT" },
+        { cur: "cad", exchange: "BINANCE", quote: "USDT" },
+        { cur: "aud", exchange: "BINANCE", quote: "USDT" },
+        { cur: "rub", exchange: "BINANCE", quote: "USDT" },
+        { cur: "cny", exchange: "BINANCE", quote: "USDT" },
+        { cur: "krw", exchange: "UPBIT", quote: "KRW" },
+        { cur: "inr", exchange: "BINANCE", quote: "USDT" },
+        { cur: "brl", exchange: "BINANCE", quote: "BRL" },
+        { cur: "mxn", exchange: "BINANCE", quote: "USDT" },
+        { cur: "pln", exchange: "BINANCE", quote: "USDT" },
+        { cur: "try", exchange: "BINANCE", quote: "TRY" },
+        { cur: "uah", exchange: "BINANCE", quote: "UAH" },
+        { cur: "btc", exchange: "BINANCE", quote: "BTC" },
+        { cur: "eth", exchange: "BINANCE", quote: "ETH" }
+    ];
+    function getTradingViewSymbol(coinSymbol, coinId) {
+        let s = (coinSymbol || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (coinId && COINGECKO_TO_BINANCE[coinId]) s = COINGECKO_TO_BINANCE[coinId];
+        if (!s || s === "USDT" || s === "USDC" || s === "BUSD") return "BINANCE:BTCUSDT";
+        const supported = ["usd","eur","gbp","jpy","chf","cad","aud","rub","cny","krw","inr","brl","mxn","pln","try","uah","btc","eth"];
+        const cur = (supported.includes(fiatCurrency) ? fiatCurrency : "usd").toLowerCase();
+        const cfg = CURRENCY_EXCHANGES.find(c => c.cur === cur) || CURRENCY_EXCHANGES[0];
+        return cfg.exchange + ":" + s + cfg.quote;
+    }
+
+    function getTradingViewLocale() {
+        const langCode = (lang || "en").toLowerCase();
+        if (langCode.startsWith("de")) return "de";
+        if (langCode.startsWith("es")) return "es";
+        if (langCode.startsWith("fr")) return "fr";
+        if (langCode.startsWith("it")) return "it";
+        if (langCode.startsWith("ja")) return "ja";
+        if (langCode.startsWith("ko")) return "ko";
+        if (langCode.startsWith("pt")) return "pt";
+        if (langCode.startsWith("ru")) return "ru";
+        if (langCode === "zh-tw" || langCode === "zh_hant" || langCode === "zh-hant") return "zh_TW";
+        if (langCode.startsWith("zh")) return "zh";
+        return "en";
+    }
+
+    function renderChartWithSymbol(symbol) {
+        const tradingViewLocale = getTradingViewLocale();
+        const config = {
+            autosize: true,
+            symbol: symbol,
+            interval: "60",
+            timezone: "Etc/UTC",
+            theme: "dark",
+            style: "1",
+            locale: tradingViewLocale,
+            allow_symbol_change: true,
+            calendar: false,
+            support_host: "https://www.tradingview.com",
+            hide_side_toolbar: false,
+            enabled_features: ["side_toolbar_in_fullscreen_mode"],
+            overrides: {
+                "paneProperties.background": "#131722",
+                "paneProperties.backgroundType": "solid",
+                "paneProperties.backgroundGradientStartColor": "#131722",
+                "paneProperties.backgroundGradientEndColor": "#131722"
+            }
+        };
+        const container = document.getElementById("chart-tradingview-container");
+        container.innerHTML = "";
+        const iframe = document.createElement("iframe");
+        iframe.setAttribute("scrolling", "no");
+        iframe.style.cssText = "height:100%; width:100%; border:none; display:block;";
+        iframe.src = "https://www.tradingview-widget.com/embed-widget/advanced-chart/#" + encodeURIComponent(JSON.stringify(config));
+        container.appendChild(iframe);
+    }
+
+    function openChartModal(btn) {
+        const coinSymbol = btn.dataset.coinSymbol || "";
+        const coinId = btn.dataset.coinId || "";
+        const symbol = getTradingViewSymbol(coinSymbol, coinId);
+        const modal = document.getElementById("chart-modal");
+        const loading = document.getElementById("chart-loading");
+        const container = document.getElementById("chart-tradingview-container");
+        modal.classList.add("show");
+        document.body.classList.add("chart-modal-open");
+        loading.style.display = "block";
+        container.style.display = "none";
+        container.innerHTML = "";
+        loading.style.display = "none";
+        container.style.display = "flex";
+        renderChartWithSymbol(symbol);
+    }
+
+    function closeChartModal() {
+        document.getElementById("chart-modal").classList.remove("show");
+        document.body.classList.remove("chart-modal-open");
+        document.getElementById("chart-tradingview-container").innerHTML = "";
+    }
+
+    document.getElementById("chart-modal").addEventListener("click", function(e) {
+        if (e.target === this) closeChartModal();
+    });
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape" && document.getElementById("chart-modal").classList.contains("show")) closeChartModal();
+    });
+
+    function saveOrderFromGrid() {
+        const grid = document.getElementById("ticker-grid");
+        const cards = grid.querySelectorAll(".asset-card[data-coin-id]");
+        if (cards.length === 0) return;
+        activeAssets = [...cards].map(c => c.dataset.coinId);
+        localStorage.setItem(STORAGE_KEYS.activeAssets, JSON.stringify(activeAssets));
+    }
+
+    document.getElementById("ticker-grid").addEventListener("dragstart", function(e) {
+        const card = e.target.closest(".asset-card[data-coin-id]");
+        if (!card) return;
+        card.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", card.dataset.coinId);
+    });
+    document.getElementById("ticker-grid").addEventListener("dragend", function(e) {
+        const card = e.target.closest(".asset-card[data-coin-id]");
+        if (card) card.classList.remove("dragging");
+        document.querySelectorAll(".asset-card.drag-over").forEach(c => c.classList.remove("drag-over"));
+    });
+    document.getElementById("ticker-grid").addEventListener("dragover", function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const card = e.target.closest(".asset-card[data-coin-id]");
+        const dragging = document.querySelector(".asset-card.dragging");
+        if (!card || !dragging || card === dragging) return;
+        document.querySelectorAll(".asset-card.drag-over").forEach(c => c.classList.remove("drag-over"));
+        card.classList.add("drag-over");
+    });
+    document.getElementById("ticker-grid").addEventListener("dragleave", function(e) {
+        if (!e.target.closest(".asset-card")) return;
+        const related = e.relatedTarget;
+        if (!related || !document.getElementById("ticker-grid").contains(related)) {
+            e.target.closest(".asset-card")?.classList.remove("drag-over");
+        }
+    });
+    document.getElementById("ticker-grid").addEventListener("drop", function(e) {
+        e.preventDefault();
+        const card = e.target.closest(".asset-card[data-coin-id]");
+        const dragging = document.querySelector(".asset-card.dragging");
+        if (!card || !dragging || card === dragging) return;
+        document.querySelectorAll(".asset-card.drag-over").forEach(c => c.classList.remove("drag-over"));
+        const grid = document.getElementById("ticker-grid");
+        const cards = [...grid.querySelectorAll(".asset-card[data-coin-id]")];
+        const dragIdx = cards.indexOf(dragging);
+        const dropIdx = cards.indexOf(card);
+        if (dragIdx >= 0 && dropIdx >= 0 && dragIdx !== dropIdx) {
+            if (dragIdx < dropIdx) {
+                card.parentNode.insertBefore(dragging, card.nextSibling);
+            } else {
+                card.parentNode.insertBefore(dragging, card);
+            }
+            saveOrderFromGrid();
+        }
+        dragging.classList.remove("dragging");
+    });
+
+    (function() {
+        const grid = document.getElementById("ticker-grid");
+        let touchDrag = null;
+        const THRESHOLD = 10;
+        grid.addEventListener("touchstart", function(e) {
+            if (e.target.closest("button") || e.target.closest("a")) return;
+            const card = e.target.closest(".asset-card[data-coin-id]");
+            if (!card) return;
+            touchDrag = { card, startX: e.touches[0].clientX, startY: e.touches[0].clientY, active: false };
+        }, { passive: true });
+        grid.addEventListener("touchmove", function(e) {
+            if (!touchDrag) return;
+            const dx = Math.abs(e.touches[0].clientX - touchDrag.startX);
+            const dy = Math.abs(e.touches[0].clientY - touchDrag.startY);
+            if (!touchDrag.active && dx < THRESHOLD && dy < THRESHOLD) return;
+            touchDrag.active = true;
+            e.preventDefault();
+            touchDrag.card.classList.add("dragging");
+            const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+            const over = el?.closest(".asset-card[data-coin-id]");
+            document.querySelectorAll(".asset-card.drag-over").forEach(c => c.classList.remove("drag-over"));
+            if (over && over !== touchDrag.card) over.classList.add("drag-over");
+        }, { passive: false });
+        grid.addEventListener("touchend", function(e) {
+            if (!touchDrag) return;
+            const over = document.querySelector(".asset-card.drag-over");
+            if (over && over !== touchDrag.card) {
+                const cards = [...grid.querySelectorAll(".asset-card[data-coin-id]")];
+                const dragIdx = cards.indexOf(touchDrag.card);
+                const dropIdx = cards.indexOf(over);
+                if (dragIdx >= 0 && dropIdx >= 0 && dragIdx !== dropIdx) {
+                    if (dragIdx < dropIdx) {
+                        over.parentNode.insertBefore(touchDrag.card, over.nextSibling);
+                    } else {
+                        over.parentNode.insertBefore(touchDrag.card, over);
+                    }
+                    saveOrderFromGrid();
+                }
+            }
+            touchDrag.card.classList.remove("dragging");
+            document.querySelectorAll(".asset-card.drag-over").forEach(c => c.classList.remove("drag-over"));
+            touchDrag = null;
+        }, { passive: true });
+        grid.addEventListener("touchcancel", function() {
+            if (touchDrag) {
+                touchDrag.card.classList.remove("dragging");
+                document.querySelectorAll(".asset-card.drag-over").forEach(c => c.classList.remove("drag-over"));
+                touchDrag = null;
+            }
+        }, { passive: true });
+    })();
+
+    document.getElementById("view-cards").classList.toggle("active", viewMode === "cards");
+    document.getElementById("view-compact").classList.toggle("active", viewMode === "compact");
+    document.getElementById("ticker-grid").classList.toggle("compact", viewMode === "compact");
+
+    applyLang();
+    fetchPrices();
+    refreshIntervalId = setInterval(fetchPrices, REFRESH_RATE);
+</script>
+
+</body>
+</html>
