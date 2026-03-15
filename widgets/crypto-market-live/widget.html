@@ -89,7 +89,7 @@
         .view-toggle button.active { background: var(--card-bg); color: var(--highlight); }
 
         #ticker-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;
         }
         #ticker-grid.compact { display: flex; flex-direction: column; gap: 4px; }
         #ticker-grid.compact .asset-card {
@@ -98,7 +98,8 @@
         }
         #ticker-grid.compact .asset-card .asset-card-main { display: contents; }
         #ticker-grid.compact .asset-header { margin: 0; }
-        #ticker-grid.compact .asset-info .asset-logo { width: 28px; height: 28px; }
+        #ticker-grid.compact .asset-info .asset-logo { width: 28px; height: 28px; font-size: 12px; }
+        #ticker-grid.compact .asset-price-wrap { align-items: flex-end; }
         #ticker-grid.compact .asset-name { font-size: 14px; }
         #ticker-grid.compact .asset-symbol { display: none; }
         #ticker-grid.compact .asset-price { font-size: 16px; margin: 0; text-align: right; }
@@ -106,7 +107,7 @@
 
         .asset-card {
             background-color: var(--card-bg); border-radius: 12px; padding: 16px;
-            display: flex; flex-direction: row; gap: 12px; align-items: stretch;
+            display: flex; flex-direction: row; gap: 12px; align-items: stretch; min-height: 0; overflow: hidden;
             box-shadow: 0 6px 12px rgba(0,0,0,0.3); position: relative;
             border: 1px solid transparent;
             transition: border-color 0.2s, transform 0.2s;
@@ -172,10 +173,12 @@
         .asset-header {
             display: flex; align-items: center; justify-content: space-between;
         }
-        .asset-info { display: flex; align-items: center; gap: 12px; }
+        .asset-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .asset-info > div:not(.asset-logo) { min-width: 0; overflow: hidden; flex: 1; }
         .asset-logo {
-            width: 40px; height: 40px; object-fit: contain; border-radius: 50%;
+            width: 40px; height: 40px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;
         }
+        .asset-logo img { width: 100%; height: 100%; object-fit: contain; }
         .asset-name { font-weight: 700; font-size: 16px; }
         .asset-symbol { font-size: 11px; color: var(--text-sub); margin-top: 1px; }
 
@@ -189,6 +192,9 @@
         .asset-change.negative { color: var(--highlight-red); }
         .asset-change.neutral { color: var(--text-sub); }
 
+        .asset-price-wrap { display: flex; flex-direction: column; gap: 2px; }
+        .stale-hint { font-size: 10px; color: var(--text-sub); opacity: 0.85; font-weight: 500; }
+
         .message {
             text-align: center; padding: 30px; color: var(--text-sub);
             font-size: 16px; grid-column: 1 / -1;
@@ -201,11 +207,12 @@
         }
         body.modal-open #ticker-grid { visibility: hidden; }
         .modal-content {
+            position: relative;
             background: var(--bg-color); padding: 24px; border-radius: 12px;
             width: 400px; border: 1px solid #444;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             text-align: center;
-            max-height: 85vh; overflow-y: auto;
+            max-height: 85vh; overflow-y: auto; overflow-x: visible;
         }
         .modal-title { margin-top: 0; font-size: 18px; margin-bottom: 20px; }
         .label-text {
@@ -239,12 +246,15 @@
         .asset-chip button { background: none; border: none; color: var(--text-sub); cursor: pointer; padding: 0; font-size: 14px; line-height: 1; }
         .asset-chip button:hover { color: var(--highlight-red); }
 
-        select {
-            width: 100%; padding: 10px; margin-bottom: 5px;
-            background: var(--card-bg); color: #fff; border: 1px solid #555;
-            border-radius: 6px; font-size: 14px; outline: none;
-        }
-        select:focus { border-color: var(--highlight); }
+        .custom-select-wrap { position: relative; margin-bottom: 5px; }
+        .custom-select-btn { width: 100%; padding: 10px; background: var(--card-bg); color: #fff; border: 1px solid #555; border-radius: 6px; font-size: 14px; text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; }
+        .custom-select-btn:hover { border-color: var(--highlight); }
+        .custom-select-btn::after { content: "▼"; font-size: 10px; opacity: 0.7; }
+        .custom-select-dropdown { position: absolute; top: 100%; left: 0; width: 100%; margin-top: 4px; background: var(--card-bg); border: 1px solid #555; border-radius: 6px; max-height: 200px; overflow-y: auto; z-index: 1001; display: none; box-sizing: border-box; }
+        .custom-select-dropdown.show { display: block; }
+        .custom-select-item { padding: 10px 12px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #333; text-align: left; }
+        .custom-select-item:last-child { border-bottom: none; }
+        .custom-select-item:hover { background: #333; }
         .modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
         button.primary {
             background: var(--highlight); color: #000; border: none; padding: 8px 16px;
@@ -308,40 +318,16 @@
         </div>
         <label class="label-text">Selected Assets</label>
         <div id="selected-assets" class="selected-assets"></div>
-        <label for="lang-select" id="label-language" class="label-text">Language</label>
-        <select id="lang-select" onchange="setLang(this.value)">
-            <option value="en">English</option>
-            <option value="ru">Русский</option>
-            <option value="de">Deutsch</option>
-            <option value="fr">Français</option>
-            <option value="es">Español</option>
-            <option value="ja">日本語</option>
-            <option value="zh">中文</option>
-            <option value="ar">العربية</option>
-            <option value="pt">Português</option>
-            <option value="hi">हिन्दी</option>
-        </select>
-        <label for="fiat-select" class="label-text">Display Currency</label>
-        <select id="fiat-select">
-            <option value="usd">USD ($)</option>
-            <option value="eur">EUR (€)</option>
-            <option value="gbp">GBP (£)</option>
-            <option value="jpy">JPY (¥)</option>
-            <option value="chf">CHF (Fr)</option>
-            <option value="cad">CAD ($)</option>
-            <option value="aud">AUD ($)</option>
-            <option value="rub">RUB (₽)</option>
-            <option value="cny">CNY (¥)</option>
-            <option value="krw">KRW (₩)</option>
-            <option value="inr">INR (₹)</option>
-            <option value="brl">BRL (R$)</option>
-            <option value="mxn">MXN ($)</option>
-            <option value="pln">PLN (zł)</option>
-            <option value="try">TRY (₺)</option>
-            <option value="uah">UAH (₴)</option>
-            <option value="btc">BTC (₿)</option>
-            <option value="eth">ETH (Ξ)</option>
-        </select>
+        <label id="label-language" class="label-text">Language</label>
+        <div class="custom-select-wrap">
+            <button type="button" id="lang-select-btn" class="custom-select-btn">English</button>
+            <div id="lang-select-dropdown" class="custom-select-dropdown"></div>
+        </div>
+        <label class="label-text">Display Currency</label>
+        <div class="custom-select-wrap">
+            <button type="button" id="fiat-select-btn" class="custom-select-btn">USD ($)</button>
+            <div id="fiat-select-dropdown" class="custom-select-dropdown"></div>
+        </div>
         <div class="modal-actions">
             <button class="secondary" onclick="closeSettings()">Cancel</button>
             <button class="primary" onclick="saveSettings()">Save</button>
@@ -388,48 +374,51 @@
         en: { title: "Crypto Market Live", live: "LIVE", loading: "Loading...", loadingPrices: "Loading prices...", viewCards: "Card view", viewCompact: "Compact list", data: "Data", settings: "Settings",
             settingsTitle: "Widget Settings", addAsset: "Add Asset (search any CoinGecko cryptocurrency)", searchPlaceholder: "Search by name or symbol...", selectedAssets: "Selected Assets", language: "Language", currency: "Display Currency", noMatches: "No matches",
             cancel: "Cancel", save: "Save", selectAsset: "Please select at least one asset in Settings.", noData: "No market data for selected assets. Try popular coins like Bitcoin, Ethereum.",
-            loadError: "Unable to load prices.", corsHint: " Open via http:// or check network.", networkHint: " Check network or try again later.", retry: "Retry", expandChart: "Expand chart", switchExchange: "Switch exchange", close: "Close", loadingChart: "Loading chart...", widgetBy: "Widget by KirjoZzZ" },
+            loadError: "Unable to load prices.", corsHint: " Open via http:// or check network.", networkHint: " Check network or try again later.", retry: "Retry", expandChart: "Expand chart", switchExchange: "Switch exchange", close: "Close", loadingChart: "Loading chart...", widgetBy: "Widget by KirjoZzZ", dataDelayed: "delayed" },
         ru: { title: "Крипторынок", live: "ОНЛАЙН", loading: "Загрузка...", loadingPrices: "Загрузка цен...", viewCards: "Карточки", viewCompact: "Список", data: "Данные", settings: "Настройки",
             settingsTitle: "Настройки виджета", addAsset: "Добавить монету (поиск по CoinGecko)", searchPlaceholder: "Поиск по названию или тикеру...", selectedAssets: "Выбранные монеты", language: "Язык", currency: "Валюта",
             cancel: "Отмена", save: "Сохранить", selectAsset: "Выберите хотя бы одну монету в настройках.", noData: "Нет данных. Попробуйте Bitcoin, Ethereum и др.",
-            loadError: "Не удалось загрузить цены.", corsHint: " Откройте через http:// или проверьте сеть.", networkHint: " Проверьте сеть или повторите позже.", retry: "Повторить", expandChart: "Открыть график", switchExchange: "Сменить биржу", close: "Закрыть", loadingChart: "Загрузка графика...", widgetBy: "Виджет сделан KirjoZzZ" },
+            loadError: "Не удалось загрузить цены.", corsHint: " Откройте через http:// или проверьте сеть.", networkHint: " Проверьте сеть или повторите позже.", retry: "Повторить", expandChart: "Открыть график", switchExchange: "Сменить биржу", close: "Закрыть", loadingChart: "Загрузка графика...", widgetBy: "Виджет сделан KirjoZzZ", dataDelayed: "задержка" },
         de: { title: "Kryptomarkt", live: "LIVE", loading: "Laden...", loadingPrices: "Preise werden geladen...", viewCards: "Karten", viewCompact: "Liste", data: "Daten", settings: "Einstellungen",
             settingsTitle: "Widget-Einstellungen", addAsset: "Kryptowährung hinzufügen (CoinGecko-Suche)", searchPlaceholder: "Nach Name oder Symbol suchen...", selectedAssets: "Ausgewählte Coins", language: "Sprache", currency: "Währung", noMatches: "Keine Treffer",
             cancel: "Abbrechen", save: "Speichern", selectAsset: "Wählen Sie mindestens einen Coin in den Einstellungen.", noData: "Keine Marktdaten. Versuchen Sie Bitcoin, Ethereum usw.",
-            loadError: "Preise konnten nicht geladen werden.", corsHint: " Über http:// öffnen oder Netzwerk prüfen.", networkHint: " Netzwerk prüfen oder später erneut versuchen.", retry: "Erneut", expandChart: "Chart erweitern", switchExchange: "Börse wechseln", close: "Schließen", loadingChart: "Chart wird geladen..." },
+            loadError: "Preise konnten nicht geladen werden.", corsHint: " Über http:// öffnen oder Netzwerk prüfen.", networkHint: " Netzwerk prüfen oder später erneut versuchen.", retry: "Erneut", expandChart: "Chart erweitern", switchExchange: "Börse wechseln", close: "Schließen", loadingChart: "Chart wird geladen...", dataDelayed: "verzögert" },
         fr: { title: "Marché crypto", live: "EN DIRECT", loading: "Chargement...", loadingPrices: "Chargement des prix...", viewCards: "Cartes", viewCompact: "Liste", data: "Données", settings: "Paramètres",
             settingsTitle: "Paramètres du widget", addAsset: "Ajouter une crypto (recherche CoinGecko)", searchPlaceholder: "Rechercher par nom ou symbole...", selectedAssets: "Actifs sélectionnés", language: "Langue", currency: "Devise",
             cancel: "Annuler", save: "Enregistrer", selectAsset: "Sélectionnez au moins un actif dans les paramètres.", noData: "Aucune donnée. Essayez Bitcoin, Ethereum, etc.",
-            loadError: "Impossible de charger les prix.", corsHint: " Ouvrir via http:// ou vérifier le réseau.", networkHint: " Vérifiez le réseau ou réessayez plus tard.", retry: "Réessayer", expandChart: "Agrandir le graphique", switchExchange: "Changer d'exchange", close: "Fermer", loadingChart: "Chargement du graphique..." },
+            loadError: "Impossible de charger les prix.", corsHint: " Ouvrir via http:// ou vérifier le réseau.", networkHint: " Vérifiez le réseau ou réessayez plus tard.", retry: "Réessayer", expandChart: "Agrandir le graphique", switchExchange: "Changer d'exchange", close: "Fermer", loadingChart: "Chargement du graphique...", dataDelayed: "retardé" },
         es: { title: "Mercado crypto", live: "EN VIVO", loading: "Cargando...", loadingPrices: "Cargando precios...", viewCards: "Tarjetas", viewCompact: "Lista", data: "Datos", settings: "Ajustes",
             settingsTitle: "Ajustes del widget", addAsset: "Añadir cripto (buscar en CoinGecko)", searchPlaceholder: "Buscar por nombre o símbolo...", selectedAssets: "Activos seleccionados", language: "Idioma", currency: "Moneda", noMatches: "Sin resultados",
             cancel: "Cancelar", save: "Guardar", selectAsset: "Seleccione al menos un activo en Ajustes.", noData: "Sin datos. Pruebe Bitcoin, Ethereum, etc.",
-            loadError: "No se pudieron cargar los precios.", corsHint: " Abrir vía http:// o comprobar la red.", networkHint: " Compruebe la red o intente más tarde.", retry: "Reintentar", expandChart: "Ampliar gráfico", switchExchange: "Cambiar exchange", close: "Cerrar", loadingChart: "Cargando gráfico...", widgetBy: "Widget por KirjoZzZ" },
+            loadError: "No se pudieron cargar los precios.", corsHint: " Abrir vía http:// o comprobar la red.", networkHint: " Compruebe la red o intente más tarde.", retry: "Reintentar", expandChart: "Ampliar gráfico", switchExchange: "Cambiar exchange", close: "Cerrar", loadingChart: "Cargando gráfico...", widgetBy: "Widget por KirjoZzZ", dataDelayed: "retrasado" },
         ja: { title: "暗号資産相場", live: "ライブ", loading: "読み込み中...", loadingPrices: "価格を読み込み中...", viewCards: "カード", viewCompact: "リスト", data: "データ", settings: "設定",
             settingsTitle: "ウィジェット設定", addAsset: "暗号資産を追加（CoinGecko検索）", searchPlaceholder: "名前またはシンボルで検索...", selectedAssets: "選択した資産", language: "言語", currency: "通貨",
             cancel: "キャンセル", save: "保存", selectAsset: "設定で少なくとも1つの資産を選択してください。", noData: "データがありません。Bitcoin、Ethereumなどを試してください。",
-            loadError: "価格を読み込めませんでした。", corsHint: " http://で開くかネットワークを確認してください。", retry: "再試行", expandChart: "チャートを拡大", switchExchange: "取引所を切り替え", close: "閉じる", loadingChart: "チャート読み込み中..." },
+            loadError: "価格を読み込めませんでした。", corsHint: " http://で開くかネットワークを確認してください。", retry: "再試行", expandChart: "チャートを拡大", switchExchange: "取引所を切り替え", close: "閉じる", loadingChart: "チャート読み込み中...", dataDelayed: "遅延" },
         zh: { title: "加密货币行情", live: "实时", loading: "加载中...", loadingPrices: "加载价格...", viewCards: "卡片", viewCompact: "列表", data: "数据", settings: "设置",
             settingsTitle: "小组件设置", addAsset: "添加代币（CoinGecko 搜索）", searchPlaceholder: "按名称或代码搜索...", selectedAssets: "已选资产", language: "语言", currency: "货币", noMatches: "无匹配",
             cancel: "取消", save: "保存", selectAsset: "请在设置中选择至少一种资产。", noData: "暂无数据，请尝试 Bitcoin、Ethereum 等。",
-            loadError: "无法加载价格。", corsHint: " 请通过 http:// 打开或检查网络。", networkHint: " 请检查网络或稍后再试。", retry: "重试", expandChart: "展开图表", switchExchange: "切换交易所", close: "关闭", loadingChart: "加载图表中...", widgetBy: "Widget by KirjoZzZ" },
+            loadError: "无法加载价格。", corsHint: " 请通过 http:// 打开或检查网络。", networkHint: " 请检查网络或稍后再试。", retry: "重试", expandChart: "展开图表", switchExchange: "切换交易所", close: "关闭", loadingChart: "加载图表中...", widgetBy: "Widget by KirjoZzZ", dataDelayed: "延迟" },
         ar: { title: "سوق العملات المشفرة", live: "مباشر", loading: "جاري التحميل...", loadingPrices: "جاري تحميل الأسعار...", viewCards: "بطاقات", viewCompact: "قائمة", data: "بيانات", settings: "الإعدادات",
             settingsTitle: "إعدادات الودجت", addAsset: "إضافة عملة (بحث CoinGecko)", searchPlaceholder: "البحث بالاسم أو الرمز...", selectedAssets: "الأصول المحددة", language: "اللغة", currency: "العملة",
             cancel: "إلغاء", save: "حفظ", selectAsset: "اختر رمزاً واحداً على الأقل في الإعدادات.", noData: "لا توجد بيانات. جرب Bitcoin أو Ethereum.",
-            loadError: "تعذر تحميل الأسعار.", corsHint: " افتح عبر http:// أو تحقق من الشبكة.", retry: "إعادة", expandChart: "توسيع الرسم", switchExchange: "تبديل البورصة", close: "إغلاق", loadingChart: "جاري تحميل الرسم...", widgetBy: "Widget by KirjoZzZ" },
+            loadError: "تعذر تحميل الأسعار.", corsHint: " افتح عبر http:// أو تحقق من الشبكة.", retry: "إعادة", expandChart: "توسيع الرسم", switchExchange: "تبديل البورصة", close: "إغلاق", loadingChart: "جاري تحميل الرسم...", widgetBy: "Widget by KirjoZzZ", dataDelayed: "تأخر" },
         pt: { title: "Mercado cripto", live: "AO VIVO", loading: "Carregando...", loadingPrices: "Carregando preços...", viewCards: "Cartões", viewCompact: "Lista", data: "Dados", settings: "Configurações",
             settingsTitle: "Configurações do widget", addAsset: "Adicionar cripto (busca CoinGecko)", searchPlaceholder: "Buscar por nome ou símbolo...", selectedAssets: "Ativos selecionados", language: "Idioma", currency: "Moeda", noMatches: "Sem resultados",
             cancel: "Cancelar", save: "Salvar", selectAsset: "Selecione pelo menos um ativo nas configurações.", noData: "Sem dados. Tente Bitcoin, Ethereum, etc.",
-            loadError: "Não foi possível carregar os preços.", corsHint: " Abra via http:// ou verifique a rede.", retry: "Tentar novamente", expandChart: "Expandir gráfico", switchExchange: "Trocar exchange", close: "Fechar", loadingChart: "Carregando gráfico...", widgetBy: "Widget por KirjoZzZ" },
+            loadError: "Não foi possível carregar os preços.", corsHint: " Abra via http:// ou verifique a rede.", retry: "Tentar novamente", expandChart: "Expandir gráfico", switchExchange: "Trocar exchange", close: "Fechar", loadingChart: "Carregando gráfico...", widgetBy: "Widget por KirjoZzZ", dataDelayed: "atrasado" },
         hi: { title: "क्रिप्टो बाजार", live: "लाइव", loading: "लोड हो रहा है...", loadingPrices: "कीमतें लोड हो रही हैं...", viewCards: "कार्ड", viewCompact: "सूची", data: "डेटा", settings: "सेटिंग्स",
             settingsTitle: "विजेट सेटिंग्स", addAsset: "क्रिप्टो जोड़ें (CoinGecko खोज)", searchPlaceholder: "नाम या प्रतीक से खोजें...", selectedAssets: "चयनित संपत्ति", language: "भाषा", currency: "मुद्रा",
             cancel: "रद्द करें", save: "सहेजें", selectAsset: "सेटिंग्स में कम से कम एक संपत्ति चुनें।", noData: "कोई डेटा नहीं। Bitcoin, Ethereum आज़माएं।",
-            loadError: "कीमतें लोड नहीं हो सकीं।", corsHint: " http:// से खोलें या नेटवर्क जांचें।", retry: "पुनः प्रयास", expandChart: "चार्ट विस्तृत करें", switchExchange: "एक्सचेंज बदलें", close: "बंद करें", loadingChart: "चार्ट लोड हो रहा है..." }
+            loadError: "कीमतें लोड नहीं हो सकीं।", corsHint: " http:// से खोलें या नेटवर्क जांचें।", retry: "पुनः प्रयास", expandChart: "चार्ट विस्तृत करें", switchExchange: "एक्सचेंज बदलें", close: "बंद करें", loadingChart: "चार्ट लोड हो रहा है...", dataDelayed: "विलंबित" }
     };
     const LANG_MAP = { ru: "ru", de: "de", fr: "fr", es: "es", ja: "ja", zh: "zh", ar: "ar", pt: "pt", hi: "hi" };
+    const LANG_OPTIONS = [{v:"en",n:"English"},{v:"ru",n:"Русский"},{v:"de",n:"Deutsch"},{v:"fr",n:"Français"},{v:"es",n:"Español"},{v:"ja",n:"日本語"},{v:"zh",n:"中文"},{v:"ar",n:"العربية"},{v:"pt",n:"Português"},{v:"hi",n:"हिन्दी"}];
+    const FIAT_OPTIONS = [{v:"usd",n:"USD ($)"},{v:"eur",n:"EUR (€)"},{v:"gbp",n:"GBP (£)"},{v:"jpy",n:"JPY (¥)"},{v:"chf",n:"CHF (Fr)"},{v:"cad",n:"CAD ($)"},{v:"aud",n:"AUD ($)"},{v:"rub",n:"RUB (₽)"},{v:"cny",n:"CNY (¥)"},{v:"krw",n:"KRW (₩)"},{v:"inr",n:"INR (₹)"},{v:"brl",n:"BRL (R$)"},{v:"mxn",n:"MXN ($)"},{v:"pln",n:"PLN (zł)"},{v:"try",n:"TRY (₺)"},{v:"uah",n:"UAH (₴)"},{v:"btc",n:"BTC (₿)"},{v:"eth",n:"ETH (Ξ)"}];
     const DATE_LOCALE = { en: "en-US", ru: "ru-RU", de: "de-DE", fr: "fr-FR", es: "es-ES", ja: "ja-JP", zh: "zh-CN", ar: "ar-SA", pt: "pt-BR", hi: "hi-IN" };
 
     const STORAGE_PREFIX = "crypto_market_live_";
+    const PRICES_CACHE_KEY = STORAGE_PREFIX + "prices_cache";
     const STORAGE_KEYS = {
         lang: STORAGE_PREFIX + "lang",
         activeAssets: STORAGE_PREFIX + "active_assets",
@@ -464,7 +453,8 @@
         const chartLoading = document.querySelector(".chart-loading"); if (chartLoading) chartLoading.textContent = t("loadingChart");
         const attrData = document.getElementById("attr-data"); if (attrData) attrData.textContent = t("data") + ": ";
         const attrAuthor = document.getElementById("attr-author"); if (attrAuthor) attrAuthor.innerHTML = t("widgetBy").replace("KirjoZzZ", '<a href="https://github.com/KirjoZzZ" target="_blank" rel="noopener noreferrer">KirjoZzZ</a>');
-        const langSel = document.getElementById("lang-select"); if (langSel) langSel.value = lang;
+        const langBtn = document.getElementById("lang-select-btn"); if (langBtn) { langBtn.textContent = LANG_OPTIONS.find(o=>o.v===lang)?.n || "English"; langBtn.dataset.value = lang; }
+        const fiatBtn = document.getElementById("fiat-select-btn"); if (fiatBtn) { fiatBtn.textContent = FIAT_OPTIONS.find(o=>o.v===fiatCurrency)?.n || "USD ($)"; fiatBtn.dataset.value = fiatCurrency; }
     }
 
     const storedActiveAssets = getStoredValueWithFallback(STORAGE_KEYS.activeAssets, "exchange_active_assets");
@@ -497,7 +487,12 @@
     async function openSettings() {
         if (refreshIntervalId) { clearInterval(refreshIntervalId); refreshIntervalId = null; }
         document.body.classList.add("modal-open");
-        document.getElementById("fiat-select").value = fiatCurrency;
+        const langBtn = document.getElementById("lang-select-btn");
+        const fiatBtn = document.getElementById("fiat-select-btn");
+        if (langBtn) { langBtn.textContent = LANG_OPTIONS.find(o=>o.v===lang)?.n || "English"; langBtn.dataset.value = lang; }
+        if (fiatBtn) { fiatBtn.textContent = FIAT_OPTIONS.find(o=>o.v===fiatCurrency)?.n || "USD ($)"; fiatBtn.dataset.value = fiatCurrency; }
+        document.getElementById("lang-select-dropdown").classList.remove("show");
+        document.getElementById("fiat-select-dropdown").classList.remove("show");
         document.getElementById("asset-search").value = "";
         document.getElementById("asset-dropdown").classList.remove("show");
         document.getElementById("asset-dropdown").innerHTML = "";
@@ -514,11 +509,14 @@
     }
 
     function saveSettings() {
-        fiatCurrency = document.getElementById("fiat-select").value;
-        localStorage.setItem(STORAGE_KEYS.fiat, fiatCurrency);
+        const langBtn = document.getElementById("lang-select-btn");
+        const fiatBtn = document.getElementById("fiat-select-btn");
+        if (langBtn?.dataset.value) { lang = langBtn.dataset.value; localStorage.setItem(STORAGE_KEYS.lang, lang); }
+        if (fiatBtn?.dataset.value) { fiatCurrency = fiatBtn.dataset.value; localStorage.setItem(STORAGE_KEYS.fiat, fiatCurrency); }
         activeAssets = [...document.querySelectorAll(".asset-chip")].map(c => c.dataset.coinId);
         localStorage.setItem(STORAGE_KEYS.activeAssets, JSON.stringify(activeAssets));
         closeSettings();
+        applyLang();
         fetchPrices();
     }
 
@@ -608,6 +606,37 @@
         setTimeout(() => document.getElementById("asset-dropdown").classList.remove("show"), 150);
     });
 
+    (function initCustomSelects() {
+        const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+        const langDropdown = document.getElementById("lang-select-dropdown");
+        const fiatDropdown = document.getElementById("fiat-select-dropdown");
+        langDropdown.innerHTML = LANG_OPTIONS.map(o => `<div class="custom-select-item" data-value="${esc(o.v)}">${esc(o.n)}</div>`).join("");
+        fiatDropdown.innerHTML = FIAT_OPTIONS.map(o => `<div class="custom-select-item" data-value="${esc(o.v)}">${esc(o.n)}</div>`).join("");
+        document.getElementById("lang-select-btn").onclick = function(e) { e.stopPropagation(); langDropdown.classList.toggle("show"); fiatDropdown.classList.remove("show"); };
+        document.getElementById("fiat-select-btn").onclick = function(e) { e.stopPropagation(); fiatDropdown.classList.toggle("show"); langDropdown.classList.remove("show"); };
+        langDropdown.onclick = fiatDropdown.onclick = e => e.stopPropagation();
+        langDropdown.querySelectorAll(".custom-select-item").forEach(el => {
+            el.onclick = function() {
+                const v = this.dataset.value;
+                document.getElementById("lang-select-btn").dataset.value = v;
+                document.getElementById("lang-select-btn").textContent = this.textContent;
+                langDropdown.classList.remove("show");
+                setLang(v);
+            };
+        });
+        fiatDropdown.querySelectorAll(".custom-select-item").forEach(el => {
+            el.onclick = function() {
+                const v = this.dataset.value;
+                fiatCurrency = v; localStorage.setItem(STORAGE_KEYS.fiat, v);
+                document.getElementById("fiat-select-btn").textContent = this.textContent;
+                document.getElementById("fiat-select-btn").dataset.value = v;
+                fiatDropdown.classList.remove("show");
+                applyLang(); fetchPrices();
+            };
+        });
+        document.addEventListener("click", () => { langDropdown.classList.remove("show"); fiatDropdown.classList.remove("show"); });
+    })();
+
     function formatPrice(n, cur) {
         const sym = { usd: "$", eur: "€", gbp: "£", jpy: "¥", chf: "Fr ", cad: "C$", aud: "A$",
             rub: "₽", cny: "¥", krw: "₩", inr: "₹", brl: "R$", mxn: "$", pln: "zł ", try: "₺", uah: "₴",
@@ -652,6 +681,8 @@
                 return;
             }
 
+            localStorage.setItem(PRICES_CACHE_KEY, JSON.stringify({ data, vs, ts: Date.now() }));
+
             document.getElementById("current-date").innerText = new Date().toLocaleDateString(DATE_LOCALE[lang] || "en-US", {
                 weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
             });
@@ -666,7 +697,7 @@
             if (needRebuild) {
                 grid.innerHTML = "";
                 for (const coin of sorted) {
-                    grid.appendChild(buildCard(coin, vs));
+                    grid.appendChild(buildCard(coin, vs, false));
                 }
                 loadAllCharts(grid.querySelectorAll(".asset-card[data-coin-id]"), coinMap);
             } else {
@@ -681,19 +712,47 @@
                     const changeEl = card.querySelector(".asset-change");
                     changeEl.textContent = changeText + " 24h";
                     changeEl.className = "asset-change " + changeClass;
+                    const staleEl = card.querySelector(".stale-hint");
+                    if (staleEl) staleEl.remove();
                 }
                 loadAllCharts(existingCards, coinMap);
             }
 
         } catch (err) {
             console.error("fetchPrices error:", err);
-            const isCors = err.message?.includes("Failed to fetch") || err.name === "TypeError";
-            const hint = isCors ? t("corsHint") : t("networkHint");
-            grid.innerHTML = '<div class="message">' + t("loadError") + hint + ' <button class="primary" onclick="fetchPrices()" style="margin-top:10px">' + t("retry") + '</button></div>';
+            let cached = null;
+            try {
+                const raw = localStorage.getItem(PRICES_CACHE_KEY);
+                if (raw) {
+                    const { data, vs: cachedVs } = JSON.parse(raw);
+                    if (Array.isArray(data) && data.length > 0 && cachedVs === vs) {
+                        const order = activeAssets.reduce((o, id, i) => { o[id] = i; return o; }, {});
+                        const filtered = data.filter(c => activeAssets.includes(c.id));
+                        const sorted = [...filtered].sort((a, b) => (order[a.id] ?? 99) - (order[b.id] ?? 99));
+                        if (sorted.length > 0) cached = { sorted };
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            if (cached) {
+                document.getElementById("current-date").innerText = new Date().toLocaleDateString(DATE_LOCALE[lang] || "en-US", {
+                    weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
+                });
+                const coinMap = Object.fromEntries(cached.sorted.map(c => [c.id, c]));
+                grid.innerHTML = "";
+                for (const coin of cached.sorted) {
+                    grid.appendChild(buildCard(coin, vs, true));
+                }
+                loadAllCharts(grid.querySelectorAll(".asset-card[data-coin-id]"), coinMap);
+            } else {
+                const isCors = err.message?.includes("Failed to fetch") || err.name === "TypeError";
+                const hint = isCors ? t("corsHint") : t("networkHint");
+                grid.innerHTML = '<div class="message">' + t("loadError") + hint + ' <button class="primary" onclick="fetchPrices()" style="margin-top:10px">' + t("retry") + '</button></div>';
+            }
+            setTimeout(fetchPrices, 15000);
         }
     }
 
-    function buildCard(coin, currencyKey) {
+    function buildCard(coin, currencyKey, isStale = false) {
         const price = coin.current_price ?? 0;
         const change = coin.price_change_percentage_24h;
         const changeClass = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
@@ -717,14 +776,16 @@
         const assetInfo = document.createElement("div");
         assetInfo.className = "asset-info";
 
+        const logoWrap = document.createElement("div");
+        logoWrap.className = "asset-logo";
         const logo = document.createElement("img");
-        logo.className = "asset-logo";
         logo.src = imgUrl;
         logo.alt = String(coin.symbol || "");
         logo.onerror = function() {
             this.onerror = null;
             this.src = "https://assets.coingecko.com/coins/images/1/small/bitcoin.png";
         };
+        logoWrap.appendChild(logo);
 
         const nameSymbolWrap = document.createElement("div");
         const nameDiv = document.createElement("div");
@@ -736,20 +797,29 @@
 
         nameSymbolWrap.appendChild(nameDiv);
         nameSymbolWrap.appendChild(symbolDiv);
-        assetInfo.appendChild(logo);
+        assetInfo.appendChild(logoWrap);
         assetInfo.appendChild(nameSymbolWrap);
         header.appendChild(assetInfo);
 
+        const priceWrap = document.createElement("div");
+        priceWrap.className = "asset-price-wrap";
         const priceDiv = document.createElement("div");
         priceDiv.className = "asset-price";
         priceDiv.textContent = formatPrice(price, cur);
+        priceWrap.appendChild(priceDiv);
+        if (isStale) {
+            const staleSpan = document.createElement("span");
+            staleSpan.className = "stale-hint";
+            staleSpan.textContent = t("dataDelayed");
+            priceWrap.appendChild(staleSpan);
+        }
 
         const changeDiv = document.createElement("div");
         changeDiv.className = "asset-change " + changeClass;
         changeDiv.textContent = changeText + " 24h";
 
         main.appendChild(header);
-        main.appendChild(priceDiv);
+        main.appendChild(priceWrap);
         main.appendChild(changeDiv);
 
         const chartWrap = document.createElement("div");
