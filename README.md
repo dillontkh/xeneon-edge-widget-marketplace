@@ -1,3 +1,5 @@
+Official Marketplace from Corsair: https://marketplace.elgato.com/icue/widgets
+
 # Corsair Xeneon Edge Widget Marketplace
 
 A community-driven marketplace for Corsair Xeneon Edge iframe widgets.
